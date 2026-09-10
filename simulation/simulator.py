@@ -10,7 +10,7 @@ import yaml
 from typing import Dict, Optional
 from pathlib import Path
 
-from .environment import ISAAtmosphere, GravityModel, WindModel
+from .environment import ISAAtmosphere, GravityModel, CoriolisModel, WindModel
 from .dynamics import ProjectileDynamics
 from .sensors import IMUSensor, GPSSensor, BaroSensor
 from .actuator_model import CanardActuator
@@ -59,11 +59,17 @@ class FlightSimulator:
         guidance_cfg = cfg.get("guidance", {})
 
         # Environment
+        latitude = env_cfg.get("latitude_deg", 26.0)
         self.atmosphere = ISAAtmosphere(
             T0=env_cfg.get("sea_level_temp_K", 288.15),
             P0=env_cfg.get("sea_level_pressure_Pa", 101325.0),
+            delta_T=env_cfg.get("temperature_deviation_K", 0.0),
         )
-        self.gravity = GravityModel()
+        self.gravity = GravityModel(latitude_deg=latitude)
+        self.coriolis = CoriolisModel(
+            latitude_deg=latitude,
+            enabled=env_cfg.get("coriolis_enabled", True),
+        )
         self.wind_model = WindModel(
             speed_ms=env_cfg.get("wind_speed_ms", 5.0),
             direction_deg=env_cfg.get("wind_direction_deg", 90.0),
@@ -71,15 +77,21 @@ class FlightSimulator:
             seed=seed + 100,
         )
 
-        # Dynamics
+        # Launch and target elevation
+        self.launch_elevation_asl = env_cfg.get("launch_elevation_asl_m", 0.0)
+        self.target_elevation_asl = cfg["target"].get("elevation_asl_m",
+                                                       self.launch_elevation_asl)
+
+        # Dynamics (with Coriolis)
         self.dynamics = ProjectileDynamics(
             mass_kg=shell["mass_kg"],
             ref_area_m2=shell["reference_area_m2"],
             cd_table=shell["cd_table"],
-            canard_area_m2=canard_cfg.get("canard_area_m2", 0.001),
-            cl_delta=canard_cfg.get("cl_delta", 3.0),
+            canard_area_m2=canard_cfg.get("canard_area_m2", 0.004),
+            cl_delta=canard_cfg.get("cl_delta", 3.5),
             atmosphere=self.atmosphere,
             gravity=self.gravity,
+            coriolis=self.coriolis,
         )
 
         # Sensors
@@ -205,9 +217,10 @@ class FlightSimulator:
             except KeyError:
                 pass
 
-        # Initial conditions
+        # Initial conditions (z starts at launch elevation ASL)
+        z0 = self.launch_elevation_asl
         state = np.array([
-            0.0, 0.0, 0.0,                              # Position at origin
+            0.0, 0.0, z0,                                # Position at launch point
             v0 * np.cos(el) * np.cos(az),                # vx
             v0 * np.cos(el) * np.sin(az),                # vy
             v0 * np.sin(el),                             # vz
@@ -255,9 +268,9 @@ class FlightSimulator:
             vel = state[3:6]
             alt = pos[2]
 
-            # Terminate if back at ground (after gaining altitude)
-            if alt < 0.0 and t > 1.0:
-                state[2] = 0.0
+            # Terminate if at/below target elevation (after gaining altitude)
+            if alt < self.target_elevation_asl and t > 1.0:
+                state[2] = self.target_elevation_asl
                 # Simulate ground impact deceleration spike for fuze
                 downrange = np.sqrt(state[0] ** 2 + state[1] ** 2)
                 self.fuze.update(

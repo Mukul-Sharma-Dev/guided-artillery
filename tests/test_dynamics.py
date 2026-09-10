@@ -57,8 +57,13 @@ class TestGravityModel:
     """Verify gravity model."""
 
     def test_sea_level(self):
-        gm = GravityModel()
-        assert abs(gm.g(0.0) - 9.80665) < 0.001
+        # At latitude 45°, Somigliana gravity ≈ 9.806 m/s² (close to G0)
+        gm = GravityModel(latitude_deg=45.0)
+        assert abs(gm.g(0.0) - 9.806) < 0.01
+        # Latitude variation: equator < pole
+        gm_eq = GravityModel(latitude_deg=0.0)
+        gm_pole = GravityModel(latitude_deg=90.0)
+        assert gm_eq.g(0.0) < gm_pole.g(0.0)
 
     def test_gravity_decreases(self):
         gm = GravityModel()

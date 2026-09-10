@@ -4,6 +4,18 @@ controller.py — Flight Phase Manager & Canard Controller
 Manages the flight phases of the projectile (boost, apogee, midcourse,
 terminal) and orchestrates canard deflection command generation through
 the guidance law.
+
+Design Note — Pitch-Primary Guidance
+-------------------------------------
+Real PGK systems (M1156-class) primarily correct *range* errors using
+pitch canard deflections. Crossrange (yaw) correction is minimal because:
+  1. The impact-point predictor doesn't model wind → yaw ZEM is noisy.
+  2. Aggressive yaw creates lateral drift worse than the original error.
+  3. Gun-lay azimuth accuracy (~1.5 mil) keeps crossrange errors small.
+
+Yaw is limited to a small proportional correction only in the terminal
+phase (last few seconds) when the crossrange error can be measured
+directly from position with high confidence.
 """
 
 import numpy as np
@@ -82,11 +94,14 @@ class FlightPhaseManager:
 
 
 class CanardController:
-    """Top-level controller that integrates guidance law with flight
-    phase management to produce canard deflection commands.
+    """Top-level controller — pitch-primary guidance with minimal yaw.
 
-    Uses the estimated state, predicts ballistic impact, and computes
-    corrective canard commands to steer the impact toward the target.
+    Pitch uses ZEM (zero-effort miss) from the ballistic impact-point
+    predictor to correct range errors. This is the primary channel.
+
+    Yaw uses a small direct position-based crossrange correction only
+    in the terminal phase. In midcourse, yaw is zero to avoid the
+    wind-noise-induced oscillation that creates lateral drift.
 
     Parameters
     ----------
@@ -120,22 +135,11 @@ class CanardController:
         self.min_tgo = guidance_cfg.get("min_time_to_go_s", 0.5)
         self.max_defl = canard_cfg.get("max_deflection_deg", 15.0)
 
-        # Yaw gain is much lower than pitch — crossrange errors are
-        # driven by wind noise, and the impact-point predictor doesn't
-        # model wind, so aggressive yaw creates drift instead of
-        # correcting it.
-        self.yaw_gain_fraction = 0.3
-
-        # Low-pass filter state for yaw smoothing
-        self._yaw_cmd_filtered = 0.0
-        self._yaw_alpha = 0.05  # Smoothing factor (lower = smoother)
+        # Yaw gain — only active in terminal phase, very conservative
+        self.terminal_yaw_gain = guidance_cfg.get("terminal_yaw_gain", 1.0)
 
     def _compute_force_per_deg(self, velocity: np.ndarray, altitude: float) -> float:
-        """Compute canard force per degree at the current flight condition.
-
-        Uses the actual velocity and an altitude-dependent density estimate
-        for accurate guidance-to-deflection conversion.
-        """
+        """Compute canard force per degree at current flight conditions."""
         v_mag = np.linalg.norm(velocity)
         if v_mag < 10.0:
             return 1.0
@@ -155,14 +159,6 @@ class CanardController:
         t: float,
     ) -> Tuple[float, float]:
         """Compute canard pitch and yaw commands for the current state.
-
-        Pitch uses ZEM (zero-effort miss) from the ballistic impact-point
-        predictor — this corrects range errors effectively.
-
-        Yaw uses a direct position-based crossrange error with reduced
-        gain and exponential smoothing to avoid wind-noise-induced
-        oscillation (the predictor doesn't model wind, so crossrange
-        ZEM from prediction is noisy and creates drift).
 
         Parameters
         ----------
@@ -196,25 +192,20 @@ class CanardController:
 
         a_cmd_x = gain * miss_x / (t_go ** 2)
 
-        # ── Yaw (crossrange correction — direct position-based) ───
-        # Use current crossrange error and velocity to estimate
-        # what correction is needed, rather than relying on the
-        # ballistic predictor (which doesn't model wind).
-        crossrange_error = self.target[1] - pos[1]
-        # Scale by remaining flight fraction for proportional correction
-        yaw_gain = gain * self.yaw_gain_fraction
-        a_cmd_y = yaw_gain * crossrange_error / (t_go ** 2)
-
-        # ── Convert to deflection angles ──────────────────────────
+        # ── Convert pitch to deflection angle ─────────────────────
         f_per_deg = self._compute_force_per_deg(vel, pos[2])
         accel_per_deg = f_per_deg / self.mass
 
         pitch_cmd = a_cmd_x / max(accel_per_deg, 1e-6)
 
-        yaw_cmd_raw = a_cmd_y / max(accel_per_deg, 1e-6)
-        # Exponential smoothing to prevent yaw oscillation
-        self._yaw_cmd_filtered += self._yaw_alpha * (yaw_cmd_raw - self._yaw_cmd_filtered)
-        yaw_cmd = self._yaw_cmd_filtered
+        # ── Yaw (terminal phase only, conservative) ───────────────
+        # In midcourse: yaw = 0 (avoid wind-noise drift)
+        # In terminal: small direct position-based correction
+        yaw_cmd = 0.0
+        if self.phase_manager.phase == FlightPhase.TERMINAL:
+            crossrange_error = self.target[1] - pos[1]
+            a_cmd_y = self.terminal_yaw_gain * crossrange_error / (t_go ** 2)
+            yaw_cmd = a_cmd_y / max(accel_per_deg, 1e-6)
 
         # Clamp to physical limits
         pitch_cmd = np.clip(pitch_cmd, -self.max_defl, self.max_defl)
@@ -227,4 +218,3 @@ class CanardController:
 
     def reset(self):
         self.phase_manager.reset()
-        self._yaw_cmd_filtered = 0.0

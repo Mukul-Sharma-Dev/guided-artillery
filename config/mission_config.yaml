@@ -75,9 +75,10 @@ sensors:
 # Target Coordinates (metres in simulation frame)
 # ---------------------------------------------------------------------------
 target:
-  x_m: 24000.0                       # Downrange distance [m]
-  y_m: 0.0                           # Crossrange offset [m]
-  z_m: 0.0                           # Target altitude [m] (sea level)
+  x_m: 24000.0                       # Target downrange [m]
+  y_m: 0.0                           # Target crossrange [m]
+  z_m: 0.0                           # Target altitude above launch [m]
+  elevation_asl_m: 0.0               # Target elevation ASL [m] (sea level)
 
 # ---------------------------------------------------------------------------
 # Simulation Parameters
@@ -116,8 +117,12 @@ monte_carlo:
 environment:
   sea_level_temp_K: 288.15           # ISA sea-level temperature [K]
   sea_level_pressure_Pa: 101325.0    # ISA sea-level pressure [Pa]
+  temperature_deviation_K: 0.0       # Non-standard temp offset [K] (+ve = hot day)
+  latitude_deg: 26.0                 # Geographic latitude [°] (26° = Jaipur, India)
+  coriolis_enabled: true             # Enable Coriolis effect (Earth rotation)
+  launch_elevation_asl_m: 0.0        # Launch point elevation ASL [m]
   wind_speed_ms: 5.0                 # Nominal steady wind speed [m/s]
-  wind_direction_deg: 90.0           # Wind FROM direction [°] (90 = from south)
+  wind_direction_deg: 90.0           # Wind FROM direction [°] (90 = from East)
   turbulence_intensity: 0.1          # Gust turbulence fraction of mean wind
 
 # ---------------------------------------------------------------------------
@@ -126,6 +131,7 @@ environment:
 guidance:
   nav_gain: 6.0                      # Proportional navigation constant N
   terminal_gain_multiplier: 2.0      # Increased gain in terminal phase
+  terminal_yaw_gain: 1.0             # Yaw gain (terminal phase only)
   min_time_to_go_s: 0.5              # Minimum t_go to avoid singularity [s]
   guidance_start_phase: "descent"    # Begin guidance after apogee
   terminal_altitude_m: 500.0         # Switch to terminal guidance below this [m]

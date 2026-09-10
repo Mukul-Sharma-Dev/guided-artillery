@@ -64,34 +64,34 @@ ACTIVE → DETONATED: Impact deceleration spike at t=92.9s
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    FlightSimulator                       │
+│                    FlightSimulator                      │
 │                                                         │
-│  ┌──────────┐   ┌──────────┐   ┌──────────────────┐    │
-│  │ ISA Atmo │   │ Gravity  │   │ Dryden Wind      │    │
-│  │ + Density│   │ WGS-84   │   │ + Turbulence     │    │
-│  └──────────┘   └──────────┘   └──────────────────┘    │
+│  ┌──────────┐   ┌──────────┐   ┌──────────────────┐     │
+│  │ ISA Atmo │   │ Gravity  │   │ Dryden Wind      │     │
+│  │ + Density│   │ WGS-84   │   │ + Turbulence     │     │
+│  └──────────┘   └──────────┘   └──────────────────┘     │
 │                                                         │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │           ProjectileDynamics (RK4)                │   │
-│  │  • Mach-dependent Cd lookup                       │   │
-│  │  • Canard lift forces (pitch + yaw)               │   │
+│  │           ProjectileDynamics (RK4)               │   │
+│  │  • Mach-dependent Cd lookup                      │   │
+│  │  • Canard lift forces (pitch + yaw)              │   │
 │  └──────────────────────────────────────────────────┘   │
 │         │                              ▲                │
 │         ▼                              │                │
-│  ┌─────────────┐    ┌────────────────────────────┐     │
-│  │ Sensors     │    │ CanardController            │     │
-│  │ IMU/GPS/Baro│───▶│  ├─ FlightPhaseManager     │     │
-│  └─────────────┘    │  ├─ ImpactPointPredictor   │     │
-│         │           │  └─ PN GuidanceLaw         │     │
-│         ▼           └────────────────────────────┘     │
-│  ┌─────────────┐              ▲                        │
-│  │   EKF       │──────────────┘                        │
-│  │ 6-state     │                                       │
-│  └─────────────┘    ┌────────────────────────────┐     │
-│                     │ ElectronicFuze              │     │
+│  ┌─────────────┐    ┌────────────────────────────┐      │
+│  │ Sensors     │    │ CanardController           │      │
+│  │ IMU/GPS/Baro│───▶│  ├─ FlightPhaseManager     │      │
+│  └─────────────┘    │  ├─ ImpactPointPredictor   │      │
+│         │           │  └─ PN GuidanceLaw         │      │
+│         ▼           └────────────────────────────┘      │
+│  ┌─────────────┐              ▲                         │
+│  │   EKF       │──────────────┘                         │
+│  │ 6-state     │                                        │
+│  └─────────────┘    ┌────────────────────────────┐      │
+│                     │ ElectronicFuze             │      │
 │                     │ SAFE→ARMING→ARMED→ACTIVE→DET│     │
 │                     │ Modes: Impact/Proximity/Time│     │
-│                     └────────────────────────────┘     │
+│                     └────────────────────────────┘      │
 └─────────────────────────────────────────────────────────┘
 ```
 

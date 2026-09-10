@@ -2,7 +2,7 @@
 dynamics.py — 3-DOF Point-Mass Trajectory Dynamics
 ====================================================
 Models the forces acting on a 155 mm projectile in flight:
-drag (Mach-dependent), gravity, wind, and canard lift.
+drag (Mach-dependent), gravity, wind, canard lift, and Coriolis.
 
 Coordinate system:
   x = downrange (East)
@@ -18,12 +18,12 @@ References
 import numpy as np
 from typing import Tuple, List
 
-from .environment import ISAAtmosphere, GravityModel
+from .environment import ISAAtmosphere, GravityModel, CoriolisModel
 
 
 class ProjectileDynamics:
     """Three-degree-of-freedom point-mass dynamics for a 155 mm shell
-    with optional canard steering forces.
+    with optional canard steering forces and Coriolis effect.
 
     Parameters
     ----------
@@ -41,6 +41,8 @@ class ProjectileDynamics:
         Atmosphere model instance.
     gravity : GravityModel
         Gravity model instance.
+    coriolis : CoriolisModel or None
+        Coriolis model instance. If None, Coriolis is disabled.
     """
 
     def __init__(
@@ -48,10 +50,11 @@ class ProjectileDynamics:
         mass_kg: float,
         ref_area_m2: float,
         cd_table: List[List[float]],
-        canard_area_m2: float = 0.001,
-        cl_delta: float = 3.0,
+        canard_area_m2: float = 0.004,
+        cl_delta: float = 3.5,
         atmosphere: ISAAtmosphere | None = None,
         gravity: GravityModel | None = None,
+        coriolis: CoriolisModel | None = None,
     ):
         self.mass = mass_kg
         self.ref_area = ref_area_m2
@@ -59,6 +62,7 @@ class ProjectileDynamics:
         self.cl_delta = cl_delta
         self.atmosphere = atmosphere or ISAAtmosphere()
         self.gravity = gravity or GravityModel()
+        self.coriolis = coriolis
 
         # Pre-process Cd table for interpolation
         cd_arr = np.array(cd_table, dtype=float)
@@ -129,7 +133,6 @@ class ProjectileDynamics:
 
         # Pitch plane: force in the vertical plane containing V
         # This raises/lowers the trajectory to extend/shorten range.
-        # Compute the upward component perpendicular to V in the xz-plane.
         v_horiz = np.array([velocity[0], velocity[1], 0.0])
         v_horiz_mag = np.linalg.norm(v_horiz)
 
@@ -196,5 +199,10 @@ class ProjectileDynamics:
 
         f_total = f_gravity + f_drag + f_canard
         accel = f_total / self.mass
+
+        # Coriolis acceleration (not a force — it's a fictitious acceleration
+        # from the rotating reference frame)
+        if self.coriolis is not None:
+            accel += self.coriolis.acceleration(vel)
 
         return np.array([vel[0], vel[1], vel[2], accel[0], accel[1], accel[2]])
