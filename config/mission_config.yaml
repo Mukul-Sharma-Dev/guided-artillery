@@ -1,0 +1,131 @@
+# ============================================================================
+# PGK-155 Smart Guidance Demonstrator — Mission Configuration
+# Smart India Hackathon (SIH) 2026 — Yantra India Limited (YIL)
+# ============================================================================
+# SAFE DEMONSTRATOR: All parameters model an inert software simulation only.
+# No operational energetics or live weapon systems are involved.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# 155 mm Artillery Shell Parameters (M107 / M795 class)
+# ---------------------------------------------------------------------------
+shell:
+  caliber_m: 0.155                    # Bore diameter [m]
+  mass_kg: 43.2                       # Projectile mass [kg]
+  reference_area_m2: 0.018869         # π/4 × 0.155² [m²]
+  muzzle_velocity_ms: 820.0           # Nominal muzzle velocity [m/s]
+  launch_elevation_deg: 51.0          # Gun elevation angle [°]
+  launch_azimuth_deg: 0.0             # Gun azimuth (0 = due East / +x) [°]
+
+  # Mach-dependent drag coefficient table (M107-class ogive + boat-tail)
+  # Format: [Mach, Cd] pairs — linearly interpolated between points
+  cd_table:
+    - [0.0,  0.15]
+    - [0.6,  0.15]
+    - [0.8,  0.18]
+    - [0.9,  0.25]
+    - [0.95, 0.30]
+    - [1.0,  0.35]     # Transonic drag peak
+    - [1.05, 0.38]
+    - [1.1,  0.36]
+    - [1.2,  0.33]
+    - [1.5,  0.28]
+    - [2.0,  0.25]
+    - [2.5,  0.22]
+    - [3.0,  0.20]
+    - [4.0,  0.18]
+
+# ---------------------------------------------------------------------------
+# Canard Actuation Assembly Parameters
+# ---------------------------------------------------------------------------
+canard:
+  num_canards: 4                      # Independent control surfaces
+  canard_area_m2: 0.004               # Total canard planform area (4 canards) [m²]
+  cl_delta: 3.5                       # Lift-curve slope per radian of deflection
+  max_deflection_deg: 15.0            # Maximum deflection per canard [°]
+  slew_rate_deg_s: 300.0              # Actuator angular rate limit [°/s]
+  lag_time_constant_s: 0.02           # First-order actuator lag τ [s]
+  activation_phase: "descent"         # Canards locked until descent phase
+
+# ---------------------------------------------------------------------------
+# Sensor Suite Parameters
+# ---------------------------------------------------------------------------
+sensors:
+  imu:
+    accel_noise_sigma_ms2: 5.0        # Accelerometer white noise σ [m/s²]
+    gyro_noise_sigma_rads: 0.01       # Gyroscope white noise σ [rad/s]
+    accel_bias_ms2: 0.5               # Accelerometer constant bias [m/s²]
+    gyro_bias_rads: 0.001             # Gyroscope constant bias [rad/s]
+    update_rate_hz: 100               # IMU sampling rate [Hz]
+    saturation_g: 20000               # Max measurable acceleration [g]
+
+  gps:
+    position_noise_sigma_m: 2.0       # GPS position noise σ [m]
+    velocity_noise_sigma_ms: 0.1      # GPS velocity noise σ [m/s]
+    update_rate_hz: 10                # GPS fix rate [Hz]
+    dropout_probability: 0.02         # Probability of missed fix per epoch
+    jamming_zones: []                 # List of {center: [x,y,z], radius: R}
+
+  baro:
+    altitude_noise_sigma_m: 3.0       # Barometric altitude noise σ [m]
+    update_rate_hz: 20                # Barometer sampling rate [Hz]
+    pressure_bias_pa: 50.0            # Static pressure sensor bias [Pa]
+
+# ---------------------------------------------------------------------------
+# Target Coordinates (metres in simulation frame)
+# ---------------------------------------------------------------------------
+target:
+  x_m: 24000.0                       # Downrange distance [m]
+  y_m: 0.0                           # Crossrange offset [m]
+  z_m: 0.0                           # Target altitude [m] (sea level)
+
+# ---------------------------------------------------------------------------
+# Simulation Parameters
+# ---------------------------------------------------------------------------
+simulation:
+  dt_s: 0.01                          # Integration time step [s]
+  t_max_s: 120.0                     # Maximum simulation duration [s]
+  seed: 42                           # Base random seed
+
+# ---------------------------------------------------------------------------
+# Fuze Parameters (multi-mode electronic fuze)
+# ---------------------------------------------------------------------------
+fuze:
+  arm_distance_m: 500.0              # Minimum downrange for arming [m]
+  arm_time_s: 5.0                    # Minimum flight time for arming [s]
+  setback_threshold_g: 10000         # Launch detection threshold [g]
+  proximity_hob_m: 7.0               # Height-of-burst for proximity mode [m]
+  impact_decel_threshold_g: 500      # Impact detection deceleration [g]
+  time_mode_delay_s: 0.0             # Programmable time-mode delay [s]
+  default_mode: "IMPACT"             # Default fuze mode
+
+# ---------------------------------------------------------------------------
+# Monte Carlo Perturbation Parameters
+# ---------------------------------------------------------------------------
+monte_carlo:
+  n_runs: 100                        # Number of stochastic trials
+  muzzle_velocity_sigma_ms: 5.0      # MV perturbation σ [m/s] (M777-class precision)
+  elevation_sigma_mil: 1.5           # Elevation error σ [mil] (1 mil ≈ 0.05625°)
+  azimuth_sigma_mil: 1.5             # Azimuth error σ [mil]
+  wind_speed_sigma_ms: 3.0           # Wind speed perturbation σ [m/s]
+  drag_variation_pct: 3.0            # Cd perturbation σ [%]
+
+# ---------------------------------------------------------------------------
+# Environment / Atmosphere
+# ---------------------------------------------------------------------------
+environment:
+  sea_level_temp_K: 288.15           # ISA sea-level temperature [K]
+  sea_level_pressure_Pa: 101325.0    # ISA sea-level pressure [Pa]
+  wind_speed_ms: 5.0                 # Nominal steady wind speed [m/s]
+  wind_direction_deg: 90.0           # Wind FROM direction [°] (90 = from south)
+  turbulence_intensity: 0.1          # Gust turbulence fraction of mean wind
+
+# ---------------------------------------------------------------------------
+# Guidance & Control Parameters
+# ---------------------------------------------------------------------------
+guidance:
+  nav_gain: 6.0                      # Proportional navigation constant N
+  terminal_gain_multiplier: 2.0      # Increased gain in terminal phase
+  min_time_to_go_s: 0.5              # Minimum t_go to avoid singularity [s]
+  guidance_start_phase: "descent"    # Begin guidance after apogee
+  terminal_altitude_m: 500.0         # Switch to terminal guidance below this [m]
