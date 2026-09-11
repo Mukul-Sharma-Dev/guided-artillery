@@ -135,8 +135,13 @@ class CanardController:
         self.min_tgo = guidance_cfg.get("min_time_to_go_s", 0.5)
         self.max_defl = canard_cfg.get("max_deflection_deg", 15.0)
 
-        # Yaw gain — only active in terminal phase, very conservative
-        self.terminal_yaw_gain = guidance_cfg.get("terminal_yaw_gain", 1.0)
+        # Yaw PD controller gains (crossrange correction)
+        # Kp: position-proportional gain, Kd: velocity-damping gain
+        self.yaw_kp = guidance_cfg.get("yaw_kp", 3.0)
+        self.yaw_kd = guidance_cfg.get("yaw_kd", 2.0)
+
+        # Track guidance activation time for ramp-up
+        self._guidance_start_time = None
 
     def _compute_force_per_deg(self, velocity: np.ndarray, altitude: float) -> float:
         """Compute canard force per degree at current flight conditions."""
@@ -160,6 +165,9 @@ class CanardController:
     ) -> Tuple[float, float]:
         """Compute canard pitch and yaw commands for the current state.
 
+        Pitch: ZEM-based proportional navigation (impact predictor).
+        Yaw:   PD controller on crossrange error (direct position + velocity).
+
         Parameters
         ----------
         estimated_state : ndarray (6,)
@@ -175,7 +183,12 @@ class CanardController:
         self.phase_manager.update(estimated_state, t)
 
         if not self.phase_manager.is_guidance_active():
+            self._guidance_start_time = None
             return 0.0, 0.0
+
+        # Track when guidance first activates (for ramp-up)
+        if self._guidance_start_time is None:
+            self._guidance_start_time = t
 
         pos = estimated_state[:3]
         vel = estimated_state[3:6]
@@ -198,14 +211,40 @@ class CanardController:
 
         pitch_cmd = a_cmd_x / max(accel_per_deg, 1e-6)
 
-        # ── Yaw (terminal phase only, conservative) ───────────────
-        # In midcourse: yaw = 0 (avoid wind-noise drift)
-        # In terminal: small direct position-based correction
-        yaw_cmd = 0.0
+        # ── Yaw (PD crossrange controller — midcourse + terminal) ─
+        #
+        # Uses direct position + velocity instead of impact predictor:
+        #   e_y  = target_y − pos_y            (position error)
+        #   vy_r = e_y / t_go                  (required crossrange velocity)
+        #   Δvy  = vy_r − vel_y                (velocity correction needed)
+        #   a_y  = K_p · e_y / t_go² + K_d · Δvy / t_go
+        #
+        # This is robust to wind because it measures actual position
+        # and velocity, not predicted impact (which ignores wind).
+
+        crossrange_error = self.target[1] - pos[1]
+        vy_required = crossrange_error / t_go
+        vy_correction = vy_required - vel[1]
+
+        # PD gains
+        kp = self.yaw_kp
+        kd = self.yaw_kd
+
+        # Terminal phase: increase gains for final correction
         if self.phase_manager.phase == FlightPhase.TERMINAL:
-            crossrange_error = self.target[1] - pos[1]
-            a_cmd_y = self.terminal_yaw_gain * crossrange_error / (t_go ** 2)
-            yaw_cmd = a_cmd_y / max(accel_per_deg, 1e-6)
+            kp *= self.terminal_gain_mult
+            kd *= self.terminal_gain_mult
+
+        a_cmd_y = kp * crossrange_error / (t_go ** 2) + kd * vy_correction / t_go
+
+        # Ramp gain smoothly over first 5 seconds of guidance to avoid transients
+        dt_active = t - self._guidance_start_time
+        ramp = min(dt_active / 5.0, 1.0)
+        a_cmd_y *= ramp
+
+        # Negate because canard yaw_dir = cross(v_hat, up) = [0, -1, 0]
+        # so positive deflection creates force in -y. We need opposite sign.
+        yaw_cmd = -a_cmd_y / max(accel_per_deg, 1e-6)
 
         # Clamp to physical limits
         pitch_cmd = np.clip(pitch_cmd, -self.max_defl, self.max_defl)
@@ -218,3 +257,4 @@ class CanardController:
 
     def reset(self):
         self.phase_manager.reset()
+        self._guidance_start_time = None
