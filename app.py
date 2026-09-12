@@ -272,7 +272,7 @@ with tab1:
             name="Target Location",
         ))
 
-        # 5. Clean White Background & Visible Labels
+        # 5. Clean White Background, Proportional Aspect Ratio & Centered Camera Fit
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
@@ -300,20 +300,54 @@ with tab1:
                     tickfont=dict(color="#374151"),
                 ),
                 bgcolor="#ffffff",
-                aspectmode="data",
+                aspectmode="manual",
+                aspectratio=dict(x=2.6, y=0.8, z=0.9),
+                camera=dict(
+                    eye=dict(x=0.0, y=-2.5, z=0.3),
+                    center=dict(x=0.0, y=0.0, z=-0.05),
+                    up=dict(x=0, y=0, z=1),
+                ),
             ),
             paper_bgcolor="#ffffff",
             plot_bgcolor="#ffffff",
             font=dict(color="#111827"),
-            margin=dict(l=0, r=0, b=0, t=30),
-            height=650,
+            margin=dict(l=0, r=0, b=0, t=40),
+            height=620,
             legend=dict(
-                x=0.02, y=0.98,
-                bgcolor="rgba(255, 255, 255, 0.9)",
+                x=0.02, y=0.96,
+                bgcolor="rgba(255, 255, 255, 0.92)",
                 bordercolor="#d1d5db",
                 borderwidth=1,
-                font=dict(color="#111827"),
+                font=dict(color="#111827", size=11),
             ),
+            updatemenus=[
+                dict(
+                    type="buttons",
+                    direction="right",
+                    x=0.02, y=1.04,
+                    showactive=True,
+                    bgcolor="#ffffff",
+                    bordercolor="#d1d5db",
+                    font=dict(color="#111827", size=11),
+                    buttons=[
+                        dict(
+                            label="🔍 Seedha View (Full Arc Fit)",
+                            method="relayout",
+                            args=[{"scene.camera": dict(eye=dict(x=0.0, y=-2.5, z=0.3), center=dict(x=0.0, y=0.0, z=-0.05), up=dict(x=0, y=0, z=1))}]
+                        ),
+                        dict(
+                            label="🧊 3D Isometric View",
+                            method="relayout",
+                            args=[{"scene.camera": dict(eye=dict(x=1.6, y=-1.8, z=1.0), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=0, z=1))}]
+                        ),
+                        dict(
+                            label="🎯 Top-Down (Crossrange View)",
+                            method="relayout",
+                            args=[{"scene.camera": dict(eye=dict(x=0.0, y=0.01, z=2.5), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=1, z=0))}]
+                        ),
+                    ]
+                )
+            ]
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
