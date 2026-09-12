@@ -39,21 +39,22 @@ class FlightPhaseManager:
 
     Phase transitions
     -----------------
-    BOOST_ASCENT → APOGEE_TRANSITION:  vz ≤ 0  (vertical velocity reverses)
-    APOGEE_TRANSITION → MIDCOURSE_GUIDANCE:  after 0.5 s in descent
-    MIDCOURSE_GUIDANCE → TERMINAL:  altitude < terminal_altitude_m
-    TERMINAL → POST_IMPACT:  altitude ≤ 0
+    BOOST_ASCENT → MIDCOURSE_GUIDANCE:  t >= canard_deploy_time_s (default 2.0s after launch)
+    MIDCOURSE_GUIDANCE → TERMINAL:      altitude < terminal_altitude_m and vz < 0
+    TERMINAL → POST_IMPACT:              altitude <= 0
 
     Parameters
     ----------
     terminal_altitude_m : float
         Altitude at which terminal phase begins [m].
+    canard_deploy_time_s : float
+        Time after launch at which canards deploy [s] (default 2.0s).
     """
 
-    def __init__(self, terminal_altitude_m: float = 500.0):
+    def __init__(self, terminal_altitude_m: float = 500.0, canard_deploy_time_s: float = 2.0):
         self.terminal_alt = terminal_altitude_m
+        self.canard_deploy_time_s = canard_deploy_time_s
         self.phase = FlightPhase.BOOST_ASCENT
-        self._apogee_time: Optional[float] = None
         self._launched = False
 
     def update(self, state: np.ndarray, t: float) -> FlightPhase:
@@ -65,16 +66,11 @@ class FlightPhaseManager:
             self._launched = True
 
         if self.phase == FlightPhase.BOOST_ASCENT:
-            if vz <= 0.0 and self._launched:
-                self.phase = FlightPhase.APOGEE_TRANSITION
-                self._apogee_time = t
-
-        elif self.phase == FlightPhase.APOGEE_TRANSITION:
-            if t - self._apogee_time > 0.5:
+            if t >= self.canard_deploy_time_s and self._launched:
                 self.phase = FlightPhase.MIDCOURSE_GUIDANCE
 
         elif self.phase == FlightPhase.MIDCOURSE_GUIDANCE:
-            if alt < self.terminal_alt:
+            if alt < self.terminal_alt and vz < 0:
                 self.phase = FlightPhase.TERMINAL
 
         elif self.phase == FlightPhase.TERMINAL:
@@ -89,7 +85,6 @@ class FlightPhaseManager:
 
     def reset(self):
         self.phase = FlightPhase.BOOST_ASCENT
-        self._apogee_time = None
         self._launched = False
 
 
@@ -117,7 +112,8 @@ class CanardController:
         canard_cfg = config.get("canard", {})
 
         self.phase_manager = FlightPhaseManager(
-            terminal_altitude_m=guidance_cfg.get("terminal_altitude_m", 500.0)
+            terminal_altitude_m=guidance_cfg.get("terminal_altitude_m", 500.0),
+            canard_deploy_time_s=guidance_cfg.get("canard_deploy_time_s", 2.0),
         )
 
         self.predictor = ImpactPointPredictor(

@@ -184,6 +184,24 @@ with tab1:
         res = st.session_state.sim_results
         u_res = st.session_state.sim_results_unguided
 
+        # Wind Physics Analysis Banner
+        w_head = -wind * np.sin(np.deg2rad(wind_dir))   # Wind along projectile flight path (+X)
+        w_cross = -wind * np.cos(np.deg2rad(wind_dir))  # Wind perpendicular (+Y = North, -Y = South)
+        
+        head_str = f"{abs(w_head):.1f} m/s Headwind (Shortens Range)" if w_head < -0.1 else (
+            f"{abs(w_head):.1f} m/s Tailwind (Extends Range)" if w_head > 0.1 else "Zero Head/Tailwind"
+        )
+        cross_str = f"{abs(w_cross):.1f} m/s Crosswind from North (Drifts South -Y)" if w_cross < -0.1 else (
+            f"{abs(w_cross):.1f} m/s Crosswind from South (Drifts North +Y)" if w_cross > 0.1 else "Zero Crosswind"
+        )
+
+        st.info(
+            f"🌬️ **Atmospheric Conditions**: Wind Speed = **{wind:.1f} m/s**, Direction = **{wind_dir:.0f}°** | "
+            f"**{head_str}** | **{cross_str}**  \n"
+            f"📌 *Note: At Wind = 0 m/s, unguided shell falls short at ~23.3 km due to natural aerodynamic drag. "
+            f"Guided PGK canards deploy at t = 2.0s to glide and hit the 24.0 km target.*"
+        )
+
         # Metrics row
         if u_res is not None:
             c1, c2, c3, c4, c5 = st.columns(5)
@@ -206,7 +224,8 @@ with tab1:
                        delta_color="normal" if res['miss_distance_m'] < 30 else "inverse")
             c5.metric("Guidance", "GUIDED" if res["guided"] else "UNGUIDED")
 
-        # 3D Trajectory Plot
+        # ── 3D Trajectory Plot ───────────────────────────────────────
+        st.subheader("🌐 3D Flight Trajectory")
         pos = res["true_position"]
         vel = res["true_velocity"]
         v_mag = np.linalg.norm(vel, axis=1)
@@ -312,7 +331,7 @@ with tab1:
             plot_bgcolor="#ffffff",
             font=dict(color="#111827"),
             margin=dict(l=0, r=0, b=0, t=40),
-            height=620,
+            height=600,
             legend=dict(
                 x=0.02, y=0.96,
                 bgcolor="rgba(255, 255, 255, 0.92)",
@@ -350,6 +369,90 @@ with tab1:
             ]
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        # ── 2D Comparative Trajectory Views (Shows Dynamic Wind Bending) ────
+        st.markdown("### 📊 Trajectory Breakdown: Wind Drift & Range Profile")
+        col_drift, col_alt = st.columns(2)
+
+        with col_drift:
+            fig_drift = go.Figure()
+            # Guided line
+            fig_drift.add_trace(go.Scatter(
+                x=pos[:, 0], y=pos[:, 1],
+                mode="lines",
+                line=dict(color="#2563eb", width=3),
+                name="Guided PGK Path",
+            ))
+            # Unguided line
+            if u_res is not None:
+                fig_drift.add_trace(go.Scatter(
+                    x=u_pos[:, 0], y=u_pos[:, 1],
+                    mode="lines",
+                    line=dict(color="#ef4444", width=2.5, dash="dot"),
+                    name=f"Unguided Wind Drift (Miss: {u_res['miss_distance_m']:.0f}m)",
+                ))
+            # Target
+            fig_drift.add_trace(go.Scatter(
+                x=[res["target"][0]], y=[res["target"][1]],
+                mode="markers+text",
+                marker=dict(size=12, color="#dc2626", symbol="circle"),
+                text=["Target"], textposition="top right",
+                name="Target (24km, 0m)",
+            ))
+            fig_drift.update_layout(
+                title="🎯 Top-Down View: Lateral Wind Drift (X vs Y)",
+                xaxis_title="Downrange X (m)",
+                yaxis_title="Crossrange Y (m) [Lateral Drift]",
+                paper_bgcolor="#ffffff",
+                plot_bgcolor="#ffffff",
+                font=dict(color="#111827"),
+                height=380,
+                xaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
+                yaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
+                legend=dict(x=0.02, y=0.98, bgcolor="rgba(255,255,255,0.85)"),
+                margin=dict(l=40, r=20, b=40, t=50),
+            )
+            st.plotly_chart(fig_drift, use_container_width=True)
+
+        with col_alt:
+            fig_alt = go.Figure()
+            # Guided line
+            fig_alt.add_trace(go.Scatter(
+                x=pos[:, 0], y=pos[:, 2],
+                mode="lines",
+                line=dict(color="#2563eb", width=3),
+                name="Guided Trajectory",
+            ))
+            # Unguided line
+            if u_res is not None:
+                fig_alt.add_trace(go.Scatter(
+                    x=u_pos[:, 0], y=u_pos[:, 2],
+                    mode="lines",
+                    line=dict(color="#ef4444", width=2.5, dash="dot"),
+                    name=f"Unguided Path (Impact: {u_pos[-1,0]/1000:.1f}km)",
+                ))
+            # Target
+            fig_alt.add_trace(go.Scatter(
+                x=[res["target"][0]], y=[res["target"][2]],
+                mode="markers+text",
+                marker=dict(size=12, color="#dc2626", symbol="circle"),
+                text=["Target"], textposition="top right",
+                name="Target Location",
+            ))
+            fig_alt.update_layout(
+                title="📈 Side Profile: Altitude vs Downrange (X vs Z)",
+                xaxis_title="Downrange X (m)",
+                yaxis_title="Altitude Z (m)",
+                paper_bgcolor="#ffffff",
+                plot_bgcolor="#ffffff",
+                font=dict(color="#111827"),
+                height=380,
+                xaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
+                yaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
+                legend=dict(x=0.02, y=0.98, bgcolor="rgba(255,255,255,0.85)"),
+                margin=dict(l=40, r=20, b=40, t=50),
+            )
+            st.plotly_chart(fig_alt, use_container_width=True)
     else:
         st.info("👈 Configure parameters in the sidebar and click **Launch Simulation**")
 

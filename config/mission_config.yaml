@@ -133,6 +133,6 @@ guidance:
   terminal_gain_multiplier: 2.0      # Increased gain in terminal phase
   yaw_kp: 3.0                        # Yaw proportional gain (crossrange position)
   yaw_kd: 2.0                        # Yaw derivative gain (crossrange velocity)
+  canard_deploy_time_s: 2.0          # Deploy canards 2.0s after launch (safe separation)
   min_time_to_go_s: 0.5              # Minimum t_go to avoid singularity [s]
-  guidance_start_phase: "descent"    # Begin guidance after apogee
   terminal_altitude_m: 500.0         # Switch to terminal guidance below this [m]
