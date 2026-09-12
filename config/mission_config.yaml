@@ -89,7 +89,7 @@ simulation:
   seed: 42                           # Base random seed
 
 # ---------------------------------------------------------------------------
-# Fuze Parameters (multi-mode electronic fuze)
+# Fuze Parameters (MIL-STD-1316 Electronic Fuze)
 # ---------------------------------------------------------------------------
 fuze:
   arm_distance_m: 500.0              # Minimum downrange for arming [m]
@@ -97,8 +97,7 @@ fuze:
   setback_threshold_g: 10000         # Launch detection threshold [g]
   proximity_hob_m: 7.0               # Height-of-burst for proximity mode [m]
   impact_decel_threshold_g: 500      # Impact detection deceleration [g]
-  time_mode_delay_s: 0.0             # Programmable time-mode delay [s]
-  default_mode: "IMPACT"             # Default fuze mode
+  default_mode: "IMPACT"             # Default fuze mode (IMPACT or PROXIMITY)
 
 # ---------------------------------------------------------------------------
 # Monte Carlo Perturbation Parameters

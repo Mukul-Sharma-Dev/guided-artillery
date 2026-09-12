@@ -18,10 +18,9 @@ from typing import Tuple, Dict, Optional
 
 
 class FuzeMode(Enum):
-    """Selectable fuze operating modes."""
-    PROXIMITY = auto()   # Height-of-burst airburst
-    TIME = auto()        # Electronic timer
-    IMPACT = auto()      # Ground-contact deceleration
+    """Selectable fuze operating modes (dual-mode operational per specification)."""
+    PROXIMITY = auto()   # 24 GHz FMCW radar height-of-burst airburst (5-10m AGL)
+    IMPACT = auto()      # Point-detonating ground-contact deceleration / crush switch
 
 
 class FuzeState(Enum):
@@ -35,7 +34,7 @@ class FuzeState(Enum):
 
 
 class ElectronicFuze:
-    """Multi-mode electronic fuze state machine.
+    """Electronic fuze state machine conforming to MIL-STD-1316.
 
     Parameters
     ----------
@@ -46,8 +45,7 @@ class ElectronicFuze:
         - setback_threshold_g (float): Launch detection threshold [g].
         - proximity_hob_m (float): Height-of-burst for proximity [m].
         - impact_decel_threshold_g (float): Impact detection [g].
-        - time_mode_delay_s (float): Programmable timer setting [s].
-        - default_mode (str): Default fuze mode name.
+        - default_mode (str): Default fuze mode name (IMPACT or PROXIMITY).
     """
 
     def __init__(self, config: dict):
@@ -56,7 +54,6 @@ class ElectronicFuze:
         self.setback_threshold = config.get("setback_threshold_g", 10_000)
         self.proximity_hob = config.get("proximity_hob_m", 7.0)
         self.impact_decel_g = config.get("impact_decel_threshold_g", 500)
-        self.time_delay = config.get("time_mode_delay_s", 0.0)
 
         # Current state
         self.state = FuzeState.SAFE
@@ -79,10 +76,6 @@ class ElectronicFuze:
         if self.state == FuzeState.SAFE:
             self.mode = mode
             self._event_log.append(f"Mode set to {mode.name}")
-
-    def set_time_delay(self, delay_s: float):
-        """Set programmable time delay for TIME mode [s]."""
-        self.time_delay = delay_s
 
     def update(
         self,
@@ -156,17 +149,6 @@ class ElectronicFuze:
                     event = (
                         f"ACTIVE→DETONATED [PROXIMITY]: "
                         f"HOB={distance_to_ground:.1f}m at t={t:.3f}s"
-                    )
-                    self._event_log.append(event)
-
-            elif self.mode == FuzeMode.TIME:
-                # Timer: trigger at programmed time after launch
-                if self.time_delay > 0 and flight_time >= self.time_delay:
-                    self.state = FuzeState.DETONATED
-                    self._detonation_time = t
-                    event = (
-                        f"ACTIVE→DETONATED [TIME]: "
-                        f"Timer expired at t={t:.3f}s (set={self.time_delay:.3f}s)"
                     )
                     self._event_log.append(event)
 

@@ -22,7 +22,6 @@ def default_config():
         "setback_threshold_g": 10000,
         "proximity_hob_m": 7.0,
         "impact_decel_threshold_g": 500,
-        "time_mode_delay_s": 60.0,
         "default_mode": "IMPACT",
     }
 
@@ -137,35 +136,15 @@ class TestFuzeProximityMode:
         assert "PROXIMITY" in event
 
 
-class TestFuzeTimeMode:
-    """Test Time mode (electronic timer)."""
+class TestFuzeOperationalModes:
+    """Validate operational modes (Impact and Proximity supported; Time mode removed)."""
 
-    def test_time_detonation(self, default_config):
-        config = default_config.copy()
-        config["time_mode_delay_s"] = 55.0  # Set timer for 55s after launch
-        fuze = ElectronicFuze(config)
-        fuze.set_mode(FuzeMode.TIME)
-
-        # Arming sequence
-        fuze.update(t=0.001, acceleration_g=15000, altitude=0,
-                    distance_to_ground=0, velocity_z=500, downrange_distance=0)
-        fuze.update(t=6.0, acceleration_g=10, altitude=3000,
-                    distance_to_ground=3000, velocity_z=300, downrange_distance=1000)
-        fuze.update(t=6.001, acceleration_g=10, altitude=3000,
-                    distance_to_ground=3000, velocity_z=300, downrange_distance=1001)
-
-        # Before timer — should NOT detonate
-        state, _ = fuze.update(t=50.0, acceleration_g=5, altitude=1000,
-                               distance_to_ground=1000, velocity_z=-200,
-                               downrange_distance=20000)
-        assert state == FuzeState.ACTIVE
-
-        # After timer — should detonate
-        state, event = fuze.update(t=55.5, acceleration_g=5, altitude=500,
-                                   distance_to_ground=500, velocity_z=-200,
-                                   downrange_distance=22000)
-        assert state == FuzeState.DETONATED
-        assert "TIME" in event
+    def test_available_modes(self):
+        modes = [m.name for m in FuzeMode]
+        assert "IMPACT" in modes
+        assert "PROXIMITY" in modes
+        assert "TIME" not in modes
+        assert len(modes) == 2
 
 
 class TestFuzeReset:
