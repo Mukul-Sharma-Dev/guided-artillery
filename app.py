@@ -61,6 +61,8 @@ if not MODULES_OK:
 # ── Session State ──────────────────────────────────────────────────
 if "sim_results" not in st.session_state:
     st.session_state.sim_results = None
+if "sim_results_unguided" not in st.session_state:
+    st.session_state.sim_results_unguided = None
 if "mc_guided" not in st.session_state:
     st.session_state.mc_guided = None
 if "mc_unguided" not in st.session_state:
@@ -171,21 +173,38 @@ with tab1:
         with st.spinner("Simulating flight trajectory..."):
             t0 = time.time()
             st.session_state.sim_results = run_simulation(v0, theta, wind, wind_dir, guided, fuze_mode)
+            if guided:
+                st.session_state.sim_results_unguided = run_simulation(v0, theta, wind, wind_dir, guided=False, fuze_mode=fuze_mode)
+            else:
+                st.session_state.sim_results_unguided = None
             elapsed = time.time() - t0
             st.sidebar.success(f"✅ Done in {elapsed:.1f}s")
 
     if st.session_state.sim_results is not None:
         res = st.session_state.sim_results
+        u_res = st.session_state.sim_results_unguided
 
         # Metrics row
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Range", f"{res['impact_point'][0]/1000:.1f} km")
-        c2.metric("Max Altitude", f"{res['max_altitude_m']/1000:.1f} km")
-        c3.metric("Flight Time", f"{res['flight_time_s']:.1f} s")
-        c4.metric("Miss Distance", f"{res['miss_distance_m']:.1f} m",
-                   delta=f"{'✅ <30m' if res['miss_distance_m'] < 30 else '❌ >30m'}",
-                   delta_color="normal" if res['miss_distance_m'] < 30 else "inverse")
-        c5.metric("Guidance", "GUIDED" if res["guided"] else "UNGUIDED")
+        if u_res is not None:
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Range", f"{res['impact_point'][0]/1000:.1f} km")
+            c2.metric("Max Altitude", f"{res['max_altitude_m']/1000:.1f} km")
+            c3.metric("Flight Time", f"{res['flight_time_s']:.1f} s")
+            c4.metric("Guided Miss", f"{res['miss_distance_m']:.1f} m",
+                       delta=f"{'✅ <30m' if res['miss_distance_m'] < 30 else '❌ >30m'}",
+                       delta_color="normal" if res['miss_distance_m'] < 30 else "inverse")
+            c5.metric("Unguided Miss", f"{u_res['miss_distance_m']:.1f} m",
+                      delta=f"{u_res['miss_distance_m']/max(res['miss_distance_m'], 0.1):.1f}x worse",
+                      delta_color="inverse")
+        else:
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Range", f"{res['impact_point'][0]/1000:.1f} km")
+            c2.metric("Max Altitude", f"{res['max_altitude_m']/1000:.1f} km")
+            c3.metric("Flight Time", f"{res['flight_time_s']:.1f} s")
+            c4.metric("Miss Distance", f"{res['miss_distance_m']:.1f} m",
+                       delta=f"{'✅ <30m' if res['miss_distance_m'] < 30 else '❌ >30m'}",
+                       delta_color="normal" if res['miss_distance_m'] < 30 else "inverse")
+            c5.metric("Guidance", "GUIDED" if res["guided"] else "UNGUIDED")
 
         # 3D Trajectory Plot
         pos = res["true_position"]
@@ -193,47 +212,108 @@ with tab1:
         v_mag = np.linalg.norm(vel, axis=1)
 
         fig = go.Figure()
+
+        # 1. Guided Trajectory
+        traj_name = "Guided Trajectory (PGK)" if res["guided"] else "Unguided Trajectory"
+        traj_color = "#2563eb" if res["guided"] else "#dc2626"
         fig.add_trace(go.Scatter3d(
             x=pos[:, 0], y=pos[:, 1], z=pos[:, 2],
             mode="lines+markers",
             marker=dict(size=1.5, color=v_mag, colorscale="Jet",
-                        showscale=True, colorbar=dict(title="V (m/s)", len=0.5)),
-            line=dict(width=3),
-            name="Trajectory",
+                        showscale=True, colorbar=dict(title=dict(text="V (m/s)", font=dict(color="#111827")),
+                                                      tickfont=dict(color="#111827"), len=0.5)),
+            line=dict(color=traj_color, width=4),
+            name=traj_name,
         ))
 
-        # Key markers
+        # 2. Unguided Trajectory (if guided was simulated)
+        if u_res is not None:
+            u_pos = u_res["true_position"]
+            fig.add_trace(go.Scatter3d(
+                x=u_pos[:, 0], y=u_pos[:, 1], z=u_pos[:, 2],
+                mode="lines",
+                line=dict(color="#ef4444", width=3, dash="dot"),
+                name=f"Unguided Trajectory (Miss: {u_res['miss_distance_m']:.1f}m)",
+            ))
+            fig.add_trace(go.Scatter3d(
+                x=[u_pos[-1, 0]], y=[u_pos[-1, 1]], z=[u_pos[-1, 2]],
+                mode="markers",
+                marker=dict(size=8, color="#991b1b", symbol="circle"),
+                name=f"Unguided Impact ({u_pos[-1, 0]/1000:.1f}km)",
+            ))
+
+        # 3. Key markers (Launch, Apogee, Guided Impact)
         fig.add_trace(go.Scatter3d(
             x=[pos[0, 0]], y=[pos[0, 1]], z=[pos[0, 2]],
-            mode="markers", marker=dict(size=8, color="lime", symbol="circle"),
-            name="Launch",
+            mode="markers", marker=dict(size=8, color="#16a34a", symbol="circle"),
+            name="Launch Point",
         ))
         apogee_idx = np.argmax(pos[:, 2])
         fig.add_trace(go.Scatter3d(
             x=[pos[apogee_idx, 0]], y=[pos[apogee_idx, 1]], z=[pos[apogee_idx, 2]],
-            mode="markers", marker=dict(size=6, color="purple", symbol="diamond"),
+            mode="markers", marker=dict(size=6, color="#9333ea", symbol="diamond"),
             name=f"Apogee ({pos[apogee_idx, 2]/1000:.1f} km)",
         ))
         fig.add_trace(go.Scatter3d(
             x=[pos[-1, 0]], y=[pos[-1, 1]], z=[pos[-1, 2]],
-            mode="markers", marker=dict(size=8, color="orange", symbol="circle"),
-            name="Impact",
-        ))
-        fig.add_trace(go.Scatter3d(
-            x=[res["target"][0]], y=[res["target"][1]], z=[res["target"][2]],
-            mode="markers", marker=dict(size=12, color="red", symbol="x"),
-            name="Target",
+            mode="markers", marker=dict(size=8, color="#f97316", symbol="circle"),
+            name=f"Guided Impact ({pos[-1, 0]/1000:.1f}km)",
         ))
 
+        # 4. Target Location (Red Dot instead of Cross)
+        fig.add_trace(go.Scatter3d(
+            x=[res["target"][0]], y=[res["target"][1]], z=[res["target"][2]],
+            mode="markers+text",
+            marker=dict(size=12, color="#dc2626", symbol="circle",
+                        line=dict(color="#7f1d1d", width=2)),
+            text=["Target"],
+            textposition="top center",
+            textfont=dict(color="#dc2626", size=13),
+            name="Target Location",
+        ))
+
+        # 5. Clean White Background & Visible Labels
         fig.update_layout(
             scene=dict(
-                xaxis_title="Downrange (m)", yaxis_title="Crossrange (m)",
-                zaxis_title="Altitude (m)",
+                xaxis=dict(
+                    title=dict(text="Downrange (m)", font=dict(color="#111827", size=12)),
+                    backgroundcolor="#ffffff",
+                    gridcolor="#e5e7eb",
+                    showbackground=True,
+                    zerolinecolor="#9ca3af",
+                    tickfont=dict(color="#374151"),
+                ),
+                yaxis=dict(
+                    title=dict(text="Crossrange (m)", font=dict(color="#111827", size=12)),
+                    backgroundcolor="#ffffff",
+                    gridcolor="#e5e7eb",
+                    showbackground=True,
+                    zerolinecolor="#9ca3af",
+                    tickfont=dict(color="#374151"),
+                ),
+                zaxis=dict(
+                    title=dict(text="Altitude (m)", font=dict(color="#111827", size=12)),
+                    backgroundcolor="#ffffff",
+                    gridcolor="#e5e7eb",
+                    showbackground=True,
+                    zerolinecolor="#9ca3af",
+                    tickfont=dict(color="#374151"),
+                ),
+                bgcolor="#ffffff",
                 aspectmode="data",
             ),
+            paper_bgcolor="#ffffff",
+            plot_bgcolor="#ffffff",
+            font=dict(color="#111827"),
             margin=dict(l=0, r=0, b=0, t=30),
-            height=600,
-            legend=dict(x=0, y=1),
+            height=650,
+            legend=dict(
+                x=0.02, y=0.98,
+                bgcolor="rgba(255, 255, 255, 0.9)",
+                bordercolor="#d1d5db",
+                borderwidth=1,
+                font=dict(color="#111827"),
+            ),
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
