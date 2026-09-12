@@ -89,8 +89,12 @@ def run_simulation(v0, theta, wind, wind_dir=90.0, guided=True, fuze_mode="IMPAC
     cfg["environment"]["wind_direction_deg"] = wind_dir
 
     sim = FlightSimulator(cfg)
-    return sim.run_single(seed=42, guided=guided, fuze_mode=fuze_mode,
-                          wind_speed=wind, wind_direction_deg=wind_dir)
+    try:
+        return sim.run_single(seed=42, guided=guided, fuze_mode=fuze_mode,
+                              wind_speed=wind, wind_direction_deg=wind_dir)
+    except TypeError:
+        return sim.run_single(seed=42, guided=guided, fuze_mode=fuze_mode,
+                              wind_speed=wind)
 
 
 def _mock_simulation(v0, theta, wind, guided):

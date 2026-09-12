@@ -169,6 +169,7 @@ class FlightSimulator:
         wind_speed: Optional[float] = None,
         wind_direction_deg: Optional[float] = None,
         cd_scale: float = 1.0,
+        **kwargs,
     ) -> Dict:
         """Execute a single flight simulation.
 
