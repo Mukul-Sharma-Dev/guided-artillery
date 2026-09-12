@@ -76,7 +76,7 @@ except FileNotFoundError:
     st.error("Config file not found. Ensure `config/mission_config.yaml` exists.")
 
 
-def run_simulation(v0, theta, wind, guided, fuze_mode="IMPACT"):
+def run_simulation(v0, theta, wind, wind_dir=90.0, guided=True, fuze_mode="IMPACT"):
     """Execute a single simulation run with given parameters."""
     if not MODULES_OK or CONFIG is None:
         return _mock_simulation(v0, theta, wind, guided)
@@ -86,9 +86,11 @@ def run_simulation(v0, theta, wind, guided, fuze_mode="IMPACT"):
     cfg["shell"]["muzzle_velocity_ms"] = v0
     cfg["shell"]["launch_elevation_deg"] = theta
     cfg["environment"]["wind_speed_ms"] = wind
+    cfg["environment"]["wind_direction_deg"] = wind_dir
 
     sim = FlightSimulator(cfg)
-    return sim.run_single(seed=42, guided=guided, fuze_mode=fuze_mode)
+    return sim.run_single(seed=42, guided=guided, fuze_mode=fuze_mode,
+                          wind_speed=wind, wind_direction_deg=wind_dir)
 
 
 def _mock_simulation(v0, theta, wind, guided):
@@ -156,13 +158,15 @@ with tab1:
     v0 = st.sidebar.slider("Muzzle Velocity (m/s)", 700.0, 900.0, 820.0, step=5.0)
     theta = st.sidebar.slider("Elevation Angle (°)", 30.0, 60.0, 45.0, step=0.5)
     wind = st.sidebar.slider("Wind Speed (m/s)", 0.0, 20.0, 5.0, step=0.5)
+    wind_dir = st.sidebar.slider("Wind Direction (°) [FROM]", 0.0, 360.0, 90.0, step=5.0,
+                                 help="0°=From North, 90°=From East (Headwind), 180°=From South, 270°=From West (Tailwind)")
     guided = st.sidebar.toggle("Enable PGK Guidance", value=True)
     fuze_mode = st.sidebar.selectbox("Fuze Mode", ["IMPACT", "PROXIMITY", "TIME"])
 
     if st.sidebar.button("🚀 Launch Simulation", type="primary", use_container_width=True):
         with st.spinner("Simulating flight trajectory..."):
             t0 = time.time()
-            st.session_state.sim_results = run_simulation(v0, theta, wind, guided, fuze_mode)
+            st.session_state.sim_results = run_simulation(v0, theta, wind, wind_dir, guided, fuze_mode)
             elapsed = time.time() - t0
             st.sidebar.success(f"✅ Done in {elapsed:.1f}s")
 

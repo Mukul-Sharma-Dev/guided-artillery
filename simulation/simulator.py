@@ -167,6 +167,7 @@ class FlightSimulator:
         azimuth_deg: Optional[float] = None,
         fuze_mode: Optional[str] = None,
         wind_speed: Optional[float] = None,
+        wind_direction_deg: Optional[float] = None,
         cd_scale: float = 1.0,
     ) -> Dict:
         """Execute a single flight simulation.
@@ -187,6 +188,8 @@ class FlightSimulator:
             Override fuze mode ("PROXIMITY", "TIME", "IMPACT").
         wind_speed : float or None
             Override wind speed [m/s].
+        wind_direction_deg : float or None
+            Override wind meteorological direction FROM [°] (0=North, 90=East, etc.).
         cd_scale : float
             Multiplicative factor on drag coefficient.
 
@@ -203,10 +206,15 @@ class FlightSimulator:
         el = np.deg2rad(elevation_deg or cfg["shell"]["launch_elevation_deg"])
         az = np.deg2rad(azimuth_deg or cfg["shell"]["launch_azimuth_deg"])
 
+        if wind_direction_deg is not None:
+            self.wind_model.direction_rad = np.deg2rad(wind_direction_deg)
+
         if wind_speed is not None:
             self.wind_model.speed = wind_speed
-            self.wind_model.wx_steady = -wind_speed * np.sin(self.wind_model.direction_rad)
-            self.wind_model.wy_steady = -wind_speed * np.cos(self.wind_model.direction_rad)
+
+        if wind_speed is not None or wind_direction_deg is not None:
+            self.wind_model.wx_steady = -self.wind_model.speed * np.sin(self.wind_model.direction_rad)
+            self.wind_model.wy_steady = -self.wind_model.speed * np.cos(self.wind_model.direction_rad)
 
         if cd_scale != 1.0:
             self.dynamics._cd_pts = self.dynamics._cd_pts * cd_scale
