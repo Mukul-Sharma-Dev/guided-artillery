@@ -21,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 st.set_page_config(
     page_title="PGK-155 Smart Guidance Demonstrator",
     layout="wide",
-    page_icon="🎯",
 )
 
 # ── Module Import ──────────────────────────────────────────────────
@@ -33,8 +32,9 @@ except ImportError as e:
     MODULES_OK = False
     _import_err = str(e)
 
-# ── Custom CSS ─────────────────────────────────────────────────────
+# ── Custom CSS & Vector Icon Stylesheet ────────────────────────────
 st.markdown("""
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
     [data-testid="stMetric"] {
         background-color: #1a2634;
@@ -49,14 +49,18 @@ st.markdown("""
         padding: 8px 20px;
         font-weight: 600;
     }
+    .bi {
+        margin-right: 6px;
+        vertical-align: -1px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🎯 PGK-155 Smart Multi-Mode Electronic Fuze Demonstrator")
+st.markdown("<h1><i class='bi bi-crosshair'></i> PGK-155 Smart Multi-Mode Electronic Fuze Demonstrator</h1>", unsafe_allow_html=True)
 st.caption("Smart India Hackathon 2026 — Yantra India Limited (YIL) Problem Statement")
 
 if not MODULES_OK:
-    st.warning(f"⚠️ Simulation modules not fully loaded: `{_import_err}`. Install deps: `pip install -r requirements.txt`")
+    st.warning(f"Simulation modules not fully loaded: `{_import_err}`. Install deps: `pip install -r requirements.txt`")
 
 # ── Session State ──────────────────────────────────────────────────
 if "sim_results" not in st.session_state:
@@ -192,16 +196,16 @@ def compute_reachability_envelope(v0: float, theta_deg: float) -> dict:
 # TABS
 # ═══════════════════════════════════════════════════════════════════
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🚀 Mission Control",
-    "📡 GNC & Sensor Fusion",
-    "💣 Multi-Mode Fuze",
-    "🎯 Monte Carlo CEP",
-    "⚡ System Architecture",
+    "Mission Control",
+    "GNC & Sensor Fusion",
+    "Multi-Mode Fuze",
+    "Monte Carlo CEP",
+    "System Architecture",
 ])
 
 # ── TAB 1: Mission Control & 3D Trajectory ────────────────────────
 with tab1:
-    st.sidebar.header("🎮 Shell & Launch Parameters")
+    st.sidebar.markdown("### <i class='bi bi-sliders'></i> Shell & Launch Parameters", unsafe_allow_html=True)
     v0 = st.sidebar.slider("Muzzle Velocity (m/s)", 700.0, 900.0, 820.0, step=5.0)
     theta = st.sidebar.slider("Elevation Angle (°)", 30.0, 60.0, 45.0, step=0.5)
 
@@ -212,7 +216,7 @@ with tab1:
     r_max = env_info["range_max_m"]
     y_max = env_info["crossrange_max_m"]
 
-    st.sidebar.header("🎯 Target Coordinates (User Input)")
+    st.sidebar.markdown("### <i class='bi bi-geo-alt-fill'></i> Target Coordinates", unsafe_allow_html=True)
     target_x = st.sidebar.number_input(
         "Target Downrange X (m)", min_value=10000.0, max_value=35000.0, value=24000.0, step=250.0,
         help="Target distance along firing axis (+X / East)"
@@ -231,18 +235,18 @@ with tab1:
     is_target_reachable = is_x_reach and is_y_reach
 
     if is_target_reachable:
-        st.sidebar.success(f"🎯 **Target Reachable!**  \nReachable: **{r_min/1000:.1f}–{r_max/1000:.1f} km**, Lat: **±{y_max/1000:.1f} km**")
+        st.sidebar.success(f"**Target Reachable:** Range **{r_min/1000:.1f}–{r_max/1000:.1f} km**, Lat **±{y_max/1000:.1f} km**")
     else:
-        st.sidebar.error(f"⚠️ **Target Out of Reach!**  \nCanard Reach: **{r_min/1000:.1f}–{r_max/1000:.1f} km**, Lat: **±{y_max/1000:.1f} km**")
+        st.sidebar.error(f"**Target Out of Reach:** Canard Reach **{r_min/1000:.1f}–{r_max/1000:.1f} km**, Lat **±{y_max/1000:.1f} km**")
 
-    st.sidebar.header("🌬️ Environmental & Guidance")
+    st.sidebar.markdown("### <i class='bi bi-wind'></i> Atmospheric & Guidance", unsafe_allow_html=True)
     wind = st.sidebar.slider("Wind Speed (m/s)", 0.0, 20.0, 5.0, step=0.5)
     wind_dir = st.sidebar.slider("Wind Direction (°) [FROM]", 0.0, 360.0, 90.0, step=5.0,
                                  help="0°=From North, 90°=From East (Headwind), 180°=From South, 270°=From West (Tailwind)")
     guided = st.sidebar.toggle("Enable PGK Guidance", value=True)
     fuze_mode = st.sidebar.selectbox("Fuze Mode", ["IMPACT", "PROXIMITY", "TIME"])
 
-    if st.sidebar.button("🚀 Launch Simulation", type="primary", use_container_width=True):
+    if st.sidebar.button("Launch Flight Simulation", type="primary", use_container_width=True):
         with st.spinner("Simulating flight trajectory..."):
             t0 = time.time()
             st.session_state.sim_results = run_simulation(
@@ -255,10 +259,10 @@ with tab1:
             else:
                 st.session_state.sim_results_unguided = None
             elapsed = time.time() - t0
-            st.sidebar.success(f"✅ Done in {elapsed:.1f}s")
+            st.sidebar.success(f"Completed in {elapsed:.1f}s")
 
     # ── Reachability Footprint Panel (Always Visible) ────────────────
-    st.markdown("### 🎯 Reachable Target Engagement Footprint")
+    st.markdown("### <i class='bi bi-bullseye'></i> Reachable Target Engagement Footprint", unsafe_allow_html=True)
     rf1, rf2, rf3, rf4 = st.columns(4)
     rf1.metric("Nominal Range (Unguided)", f"{r_nom/1000:.1f} km",
                help="Where the shell naturally lands with 0 canard input at current angle and speed")
@@ -271,7 +275,7 @@ with tab1:
 
     if is_target_reachable:
         st.success(
-            f"✅ **TARGET IS REACHABLE BY PGK!** At $V_0 = {v0:.0f}\\text{{ m/s}}$ and $\\theta = {theta:.1f}^\\circ$, "
+            f"**TARGET IS REACHABLE BY PGK:** At $V_0 = {v0:.0f}\\text{{ m/s}}$ and $\\theta = {theta:.1f}^\\circ$, "
             f"selected target `(X = {target_x:,.0f} m, Y = {target_y:,.0f} m)` falls inside the achievable guidance footprint "
             f"`[{r_min/1000:.1f} km to {r_max/1000:.1f} km]` with `±{y_max/1000:.1f} km` lateral window."
         )
@@ -283,7 +287,7 @@ with tab1:
             out_msg.append(f"Target is beyond maximum glide reach ({target_x/1000:.1f} km > {r_max/1000:.1f} km max). Increase elevation angle or muzzle velocity.")
         if abs(target_y) > y_max:
             out_msg.append(f"Crossrange offset ({abs(target_y):.0f} m > {y_max:.0f} m max) exceeds lateral canard control authority.")
-        st.warning(f"⚠️ **TARGET OUT OF GUIDANCE REACH!** " + " ".join(out_msg))
+        st.warning(f"**TARGET OUT OF GUIDANCE REACH:** " + " ".join(out_msg))
 
     if st.session_state.sim_results is not None:
         res = st.session_state.sim_results
@@ -301,9 +305,9 @@ with tab1:
         )
 
         st.info(
-            f"🌬️ **Atmospheric Conditions**: Wind Speed = **{wind:.1f} m/s**, Direction = **{wind_dir:.0f}°** | "
+            f"**Atmospheric Conditions**: Wind Speed = **{wind:.1f} m/s**, Direction = **{wind_dir:.0f}°** | "
             f"**{head_str}** | **{cross_str}**  \n"
-            f"📌 *Note: At Wind = 0 m/s, unguided shell falls short at ~{r_nom/1000:.1f} km due to natural aerodynamic drag. "
+            f"*Note: At Wind = 0 m/s, unguided shell falls short at ~{r_nom/1000:.1f} km due to natural aerodynamic drag. "
             f"Guided PGK canards deploy at t = 2.0s to glide and hit the {target_x/1000:.1f} km target.*"
         )
 
@@ -314,10 +318,10 @@ with tab1:
             c2.metric("Max Altitude", f"{res['max_altitude_m']/1000:.1f} km")
             c3.metric("Flight Time", f"{res['flight_time_s']:.1f} s")
             c4.metric("Guided Miss", f"{res['miss_distance_m']:.1f} m",
-                       delta=f"{'✅ <30m' if res['miss_distance_m'] < 30 else '❌ >30m'}",
+                       delta=f"{'< 30m (Target Met)' if res['miss_distance_m'] < 30 else '> 30m (Exceeded)'}",
                        delta_color="normal" if res['miss_distance_m'] < 30 else "inverse")
             c5.metric("Unguided Miss", f"{u_res['miss_distance_m']:.1f} m",
-                      delta=f"{u_res['miss_distance_m']/max(res['miss_distance_m'], 0.1):.1f}x worse",
+                      delta=f"{u_res['miss_distance_m']/max(res['miss_distance_m'], 0.1):.1f}x error",
                       delta_color="inverse")
         else:
             c1, c2, c3, c4, c5 = st.columns(5)
@@ -325,12 +329,12 @@ with tab1:
             c2.metric("Max Altitude", f"{res['max_altitude_m']/1000:.1f} km")
             c3.metric("Flight Time", f"{res['flight_time_s']:.1f} s")
             c4.metric("Miss Distance", f"{res['miss_distance_m']:.1f} m",
-                       delta=f"{'✅ <30m' if res['miss_distance_m'] < 30 else '❌ >30m'}",
+                       delta=f"{'< 30m (Target Met)' if res['miss_distance_m'] < 30 else '> 30m (Exceeded)'}",
                        delta_color="normal" if res['miss_distance_m'] < 30 else "inverse")
             c5.metric("Guidance", "GUIDED" if res["guided"] else "UNGUIDED")
 
         # ── 3D Trajectory Plot ───────────────────────────────────────
-        st.subheader("🌐 3D Flight Trajectory")
+        st.markdown("### <i class='bi bi-compass'></i> 3D Flight Trajectory", unsafe_allow_html=True)
         pos = res["true_position"]
         vel = res["true_velocity"]
         v_mag = np.linalg.norm(vel, axis=1)
@@ -455,17 +459,17 @@ with tab1:
                     font=dict(color="#111827", size=11),
                     buttons=[
                         dict(
-                            label="🔍 Seedha View (Full Arc Fit)",
+                            label="Side Profile (Full Arc)",
                             method="relayout",
                             args=[{"scene.camera": dict(eye=dict(x=0.0, y=-2.5, z=0.3), center=dict(x=0.0, y=0.0, z=-0.05), up=dict(x=0, y=0, z=1))}]
                         ),
                         dict(
-                            label="🧊 3D Isometric View",
+                            label="3D Isometric View",
                             method="relayout",
                             args=[{"scene.camera": dict(eye=dict(x=1.6, y=-1.8, z=1.0), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=0, z=1))}]
                         ),
                         dict(
-                            label="🎯 Top-Down (Crossrange View)",
+                            label="Top-Down (Crossrange)",
                             method="relayout",
                             args=[{"scene.camera": dict(eye=dict(x=0.0, y=0.01, z=2.5), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=1, z=0))}]
                         ),
@@ -476,7 +480,7 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
 
         # ── 2D Comparative Trajectory Views (Shows Dynamic Wind Bending) ────
-        st.markdown("### 📊 Trajectory Breakdown: Wind Drift & Range Profile")
+        st.markdown("### <i class='bi bi-graph-up-arrow'></i> Trajectory Breakdown: Wind Drift & Range Profile", unsafe_allow_html=True)
         col_drift, col_alt = st.columns(2)
 
         with col_drift:
@@ -517,7 +521,7 @@ with tab1:
                 name="Target Location",
             ))
             fig_drift.update_layout(
-                title="🎯 Top-Down View: Lateral Wind Drift (X vs Y)",
+                title="Top-Down View: Lateral Wind Drift (X vs Y)",
                 xaxis_title="Downrange X (m)",
                 yaxis_title="Crossrange Y (m) [Lateral Drift]",
                 paper_bgcolor="#ffffff",
@@ -557,7 +561,7 @@ with tab1:
                 name="Target Location",
             ))
             fig_alt.update_layout(
-                title="📈 Side Profile: Altitude vs Downrange (X vs Z)",
+                title="Side Profile: Altitude vs Downrange (X vs Z)",
                 xaxis_title="Downrange X (m)",
                 yaxis_title="Altitude Z (m)",
                 paper_bgcolor="#ffffff",
@@ -571,11 +575,11 @@ with tab1:
             )
             st.plotly_chart(fig_alt, use_container_width=True)
     else:
-        st.info("👈 Configure parameters in the sidebar and click **Launch Simulation**")
+        st.info("Configure parameters in the sidebar and click **Launch Flight Simulation**")
 
 # ── TAB 2: GNC & Sensor Fusion ────────────────────────────────────
 with tab2:
-    st.header("📡 Guidance, Navigation & Sensor Fusion")
+    st.markdown("## <i class='bi bi-radar'></i> Guidance, Navigation & Sensor Fusion", unsafe_allow_html=True)
 
     if st.session_state.sim_results is not None:
         res = st.session_state.sim_results
@@ -634,7 +638,7 @@ with tab2:
 
 # ── TAB 3: Multi-Mode Fuze ────────────────────────────────────────
 with tab3:
-    st.header("💣 Multi-Mode Electronic Fuze System")
+    st.markdown("## <i class='bi bi-shield-check'></i> Multi-Mode Electronic Fuze System", unsafe_allow_html=True)
 
     col1, col2 = st.columns([2, 1])
     with col1:
@@ -694,11 +698,11 @@ with tab3:
 
 # ── TAB 4: Monte Carlo CEP ────────────────────────────────────────
 with tab4:
-    st.header("🎯 Monte Carlo CEP Analysis")
+    st.markdown("## <i class='bi bi-pie-chart'></i> Monte Carlo CEP Analysis", unsafe_allow_html=True)
 
     mc_runs = st.slider("Number of Monte Carlo Runs", 10, 200, 50, step=10)
 
-    if st.button("🔄 Run Monte Carlo Comparison", type="primary"):
+    if st.button("Run Monte Carlo Analysis", type="primary"):
         if MODULES_OK and CONFIG is not None:
             import copy
             from experiments.monte_carlo import MonteCarloRunner
@@ -751,7 +755,7 @@ with tab4:
         # Metrics
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Guided CEP50", f"{rpt_g['CEP50_m']:.1f} m",
-                   delta=f"{'✅ PASS' if rpt_g['CEP50_m'] < 30 else '❌ FAIL'}")
+                   delta=f"{'PASS (< 30m)' if rpt_g['CEP50_m'] < 30 else 'FAIL (> 30m)'}")
         c2.metric("Unguided CEP50", f"{rpt_u['CEP50_m']:.1f} m")
         c3.metric("Improvement", f"{rpt_u['CEP50_m']/max(rpt_g['CEP50_m'],0.1):.1f}x")
         c4.metric("Target CEP", "< 30 m", delta="Design Target")
@@ -798,7 +802,7 @@ with tab4:
 
 # ── TAB 5: System Architecture ────────────────────────────────────
 with tab5:
-    st.header("⚡ System Architecture & SWaP-C")
+    st.markdown("## <i class='bi bi-cpu'></i> System Architecture & SWaP-C", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -839,7 +843,7 @@ with tab5:
         - **AOP-21** — NATO Ammunition Safety
         """)
 
-    st.subheader("⚡ Power Budget Calculator")
+    st.markdown("### <i class='bi bi-battery-charging'></i> Power Budget Calculator", unsafe_allow_html=True)
     flight_time = st.slider("Mission Flight Time (s)", 10, 150, 80)
     total_energy_j = total_power * flight_time
     battery_capacity_j = 5000  # Thermal battery
@@ -848,8 +852,8 @@ with tab5:
     c1.metric("Total Power Draw", f"{total_power:.1f} W")
     c2.metric("Energy Required", f"{total_energy_j:.0f} J")
     c3.metric("Battery Capacity", f"{battery_capacity_j} J",
-              delta=f"{'✅ Sufficient' if total_energy_j < battery_capacity_j else '⚠️ Marginal'}")
+              delta=f"{'Sufficient' if total_energy_j < battery_capacity_j else 'Marginal'}")
 
     margin = (battery_capacity_j - total_energy_j) / battery_capacity_j * 100
     st.progress(min(total_energy_j / battery_capacity_j, 1.0))
-    st.caption(f"Power margin: {margin:.1f}% {'✅' if margin > 10 else '⚠️'}")
+    st.caption(f"Power margin: {margin:.1f}% ({'Adequate' if margin > 10 else 'Constrained'})")

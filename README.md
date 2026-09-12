@@ -1,12 +1,12 @@
-# 🎯 Precision Guidance Kit (PGK) — 155mm Artillery Shell Demonstrator
+# Precision Guidance Kit (PGK) — 155mm Artillery Shell Demonstrator
 
 A scientifically grounded **software technology demonstrator** for a Precision Guidance Kit with Canard Actuation and Multi-Mode Electronic Fuze for a 155mm artillery shell.
 
-> ⚠️ **Safe Demonstrator**: This is a purely software-based simulation. No operational energetics, live hardware, or weapon systems are involved.
+> **Safe Demonstrator**: This is a purely software-based simulation. No operational energetics, live hardware, or weapon systems are involved.
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Key Results](#key-results)
