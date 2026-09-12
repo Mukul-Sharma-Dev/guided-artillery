@@ -78,10 +78,10 @@ except FileNotFoundError:
     st.error("Config file not found. Ensure `config/mission_config.yaml` exists.")
 
 
-def run_simulation(v0, theta, wind, wind_dir=90.0, guided=True, fuze_mode="IMPACT"):
-    """Execute a single simulation run with given parameters."""
+def run_simulation(v0, theta, wind, wind_dir=90.0, target_x=24000.0, target_y=0.0, target_z=0.0, guided=True, fuze_mode="IMPACT"):
+    """Execute a single simulation run with given parameters and target coordinates."""
     if not MODULES_OK or CONFIG is None:
-        return _mock_simulation(v0, theta, wind, guided)
+        return _mock_simulation(v0, theta, wind, guided, target_x, target_y, target_z)
 
     import copy
     cfg = copy.deepcopy(CONFIG)
@@ -89,6 +89,10 @@ def run_simulation(v0, theta, wind, wind_dir=90.0, guided=True, fuze_mode="IMPAC
     cfg["shell"]["launch_elevation_deg"] = theta
     cfg["environment"]["wind_speed_ms"] = wind
     cfg["environment"]["wind_direction_deg"] = wind_dir
+    cfg["target"]["x_m"] = float(target_x)
+    cfg["target"]["y_m"] = float(target_y)
+    cfg["target"]["z_m"] = float(target_z)
+    cfg["target"]["elevation_asl_m"] = float(target_z)
 
     sim = FlightSimulator(cfg)
     try:
@@ -99,7 +103,7 @@ def run_simulation(v0, theta, wind, wind_dir=90.0, guided=True, fuze_mode="IMPAC
                               wind_speed=wind)
 
 
-def _mock_simulation(v0, theta, wind, guided):
+def _mock_simulation(v0, theta, wind, guided, target_x=24000.0, target_y=0.0, target_z=0.0):
     """Generate mock results when simulation modules are unavailable."""
     t = np.linspace(0, 80, 2000)
     el = np.radians(theta)
@@ -120,7 +124,7 @@ def _mock_simulation(v0, theta, wind, guided):
     vz = np.gradient(z, t)
     v_mag = np.sqrt(vx**2 + vy**2 + vz**2)
 
-    target = np.array([x[-1] + (80 if not guided else 5), 0.0, 0.0])
+    target = np.array([float(target_x), float(target_y), float(target_z)])
     miss = np.sqrt((x[-1] - target[0])**2 + (y[-1] - target[1])**2)
 
     return {
@@ -160,9 +164,25 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # ── TAB 1: Mission Control & 3D Trajectory ────────────────────────
 with tab1:
-    st.sidebar.header("🎮 Mission Parameters")
+    st.sidebar.header("🎯 Target Coordinates (User Input)")
+    target_x = st.sidebar.number_input(
+        "Target Downrange X (m)", min_value=10000.0, max_value=35000.0, value=24000.0, step=250.0,
+        help="Target distance along firing axis (+X / East)"
+    )
+    target_y = st.sidebar.number_input(
+        "Target Crossrange Y (m)", min_value=-3000.0, max_value=3000.0, value=0.0, step=50.0,
+        help="Lateral offset from firing line (+Y North, -Y South)"
+    )
+    target_z = st.sidebar.number_input(
+        "Target Altitude ASL Z (m)", min_value=0.0, max_value=2500.0, value=0.0, step=25.0,
+        help="Target elevation Above Sea Level"
+    )
+
+    st.sidebar.header("🎮 Shell & Launch Parameters")
     v0 = st.sidebar.slider("Muzzle Velocity (m/s)", 700.0, 900.0, 820.0, step=5.0)
     theta = st.sidebar.slider("Elevation Angle (°)", 30.0, 60.0, 45.0, step=0.5)
+
+    st.sidebar.header("🌬️ Environmental & Guidance")
     wind = st.sidebar.slider("Wind Speed (m/s)", 0.0, 20.0, 5.0, step=0.5)
     wind_dir = st.sidebar.slider("Wind Direction (°) [FROM]", 0.0, 360.0, 90.0, step=5.0,
                                  help="0°=From North, 90°=From East (Headwind), 180°=From South, 270°=From West (Tailwind)")
@@ -172,9 +192,13 @@ with tab1:
     if st.sidebar.button("🚀 Launch Simulation", type="primary", use_container_width=True):
         with st.spinner("Simulating flight trajectory..."):
             t0 = time.time()
-            st.session_state.sim_results = run_simulation(v0, theta, wind, wind_dir, guided, fuze_mode)
+            st.session_state.sim_results = run_simulation(
+                v0, theta, wind, wind_dir, target_x, target_y, target_z, guided, fuze_mode
+            )
             if guided:
-                st.session_state.sim_results_unguided = run_simulation(v0, theta, wind, wind_dir, guided=False, fuze_mode=fuze_mode)
+                st.session_state.sim_results_unguided = run_simulation(
+                    v0, theta, wind, wind_dir, target_x, target_y, target_z, guided=False, fuze_mode=fuze_mode
+                )
             else:
                 st.session_state.sim_results_unguided = None
             elapsed = time.time() - t0
