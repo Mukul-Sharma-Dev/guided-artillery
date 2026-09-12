@@ -151,6 +151,43 @@ def _mock_simulation(v0, theta, wind, guided, target_x=24000.0, target_y=0.0, ta
     }
 
 
+def compute_reachability_envelope(v0: float, theta_deg: float) -> dict:
+    """Compute nominal ballistic range and achievable PGK guidance footprint."""
+    el = np.radians(theta_deg)
+    scale = (v0 / 820.0) ** 2
+    dt = 0.05
+    x, z = 0.0, 0.0
+    vx, vz = v0 * np.cos(el), v0 * np.sin(el)
+    m, area = 43.2, 0.018869
+
+    while z >= 0.0:
+        v = np.sqrt(vx**2 + vz**2)
+        rho = 1.225 * np.exp(-max(z, 0.0) / 8500.0)
+        mach = v / 340.0
+        cd = 0.16 if mach < 0.8 else (0.38 if mach < 1.2 else 0.28)
+        drag = 0.5 * rho * v**2 * cd * area
+        ax = -(drag / m) * (vx / v)
+        az = -9.81 - (drag / m) * (vz / v)
+        vx += ax * dt
+        vz += az * dt
+        x += vx * dt
+        z += vz * dt
+        if x > 50000:
+            break
+
+    r_nom = x
+    r_min = max(r_nom - 1800.0 * scale, 5000.0)
+    r_max = r_nom + 2500.0 * scale
+    y_max = 1500.0 * scale
+
+    return {
+        "nominal_range_m": r_nom,
+        "range_min_m": r_min,
+        "range_max_m": r_max,
+        "crossrange_max_m": y_max,
+    }
+
+
 # ═══════════════════════════════════════════════════════════════════
 # TABS
 # ═══════════════════════════════════════════════════════════════════
@@ -164,6 +201,17 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # ── TAB 1: Mission Control & 3D Trajectory ────────────────────────
 with tab1:
+    st.sidebar.header("🎮 Shell & Launch Parameters")
+    v0 = st.sidebar.slider("Muzzle Velocity (m/s)", 700.0, 900.0, 820.0, step=5.0)
+    theta = st.sidebar.slider("Elevation Angle (°)", 30.0, 60.0, 45.0, step=0.5)
+
+    # Compute live reachability envelope for current v0 and theta
+    env_info = compute_reachability_envelope(v0, theta)
+    r_nom = env_info["nominal_range_m"]
+    r_min = env_info["range_min_m"]
+    r_max = env_info["range_max_m"]
+    y_max = env_info["crossrange_max_m"]
+
     st.sidebar.header("🎯 Target Coordinates (User Input)")
     target_x = st.sidebar.number_input(
         "Target Downrange X (m)", min_value=10000.0, max_value=35000.0, value=24000.0, step=250.0,
@@ -178,9 +226,14 @@ with tab1:
         help="Target elevation Above Sea Level"
     )
 
-    st.sidebar.header("🎮 Shell & Launch Parameters")
-    v0 = st.sidebar.slider("Muzzle Velocity (m/s)", 700.0, 900.0, 820.0, step=5.0)
-    theta = st.sidebar.slider("Elevation Angle (°)", 30.0, 60.0, 45.0, step=0.5)
+    is_x_reach = (r_min <= target_x <= r_max)
+    is_y_reach = (abs(target_y) <= y_max)
+    is_target_reachable = is_x_reach and is_y_reach
+
+    if is_target_reachable:
+        st.sidebar.success(f"🎯 **Target Reachable!**  \nReachable: **{r_min/1000:.1f}–{r_max/1000:.1f} km**, Lat: **±{y_max/1000:.1f} km**")
+    else:
+        st.sidebar.error(f"⚠️ **Target Out of Reach!**  \nCanard Reach: **{r_min/1000:.1f}–{r_max/1000:.1f} km**, Lat: **±{y_max/1000:.1f} km**")
 
     st.sidebar.header("🌬️ Environmental & Guidance")
     wind = st.sidebar.slider("Wind Speed (m/s)", 0.0, 20.0, 5.0, step=0.5)
@@ -204,6 +257,34 @@ with tab1:
             elapsed = time.time() - t0
             st.sidebar.success(f"✅ Done in {elapsed:.1f}s")
 
+    # ── Reachability Footprint Panel (Always Visible) ────────────────
+    st.markdown("### 🎯 Reachable Target Engagement Footprint")
+    rf1, rf2, rf3, rf4 = st.columns(4)
+    rf1.metric("Nominal Range (Unguided)", f"{r_nom/1000:.1f} km",
+               help="Where the shell naturally lands with 0 canard input at current angle and speed")
+    rf2.metric("Min Reachable (Air Brake)", f"{r_min/1000:.1f} km",
+               delta=f"-{(r_nom - r_min)/1000:.1f} km (Braking/Dive)", delta_color="normal")
+    rf3.metric("Max Reachable (Canard Glide)", f"{r_max/1000:.1f} km",
+               delta=f"+{(r_max - r_nom)/1000:.1f} km (Glide Lift)", delta_color="normal")
+    rf4.metric("Lateral Crossrange Authority", f"±{y_max/1000:.1f} km",
+               help="Maximum sideways steering window via yaw canards")
+
+    if is_target_reachable:
+        st.success(
+            f"✅ **TARGET IS REACHABLE BY PGK!** At $V_0 = {v0:.0f}\\text{{ m/s}}$ and $\\theta = {theta:.1f}^\\circ$, "
+            f"selected target `(X = {target_x:,.0f} m, Y = {target_y:,.0f} m)` falls inside the achievable guidance footprint "
+            f"`[{r_min/1000:.1f} km to {r_max/1000:.1f} km]` with `±{y_max/1000:.1f} km` lateral window."
+        )
+    else:
+        out_msg = []
+        if target_x < r_min:
+            out_msg.append(f"Target is too close ({target_x/1000:.1f} km < {r_min/1000:.1f} km min). Decrease elevation angle or charge.")
+        elif target_x > r_max:
+            out_msg.append(f"Target is beyond maximum glide reach ({target_x/1000:.1f} km > {r_max/1000:.1f} km max). Increase elevation angle or muzzle velocity.")
+        if abs(target_y) > y_max:
+            out_msg.append(f"Crossrange offset ({abs(target_y):.0f} m > {y_max:.0f} m max) exceeds lateral canard control authority.")
+        st.warning(f"⚠️ **TARGET OUT OF GUIDANCE REACH!** " + " ".join(out_msg))
+
     if st.session_state.sim_results is not None:
         res = st.session_state.sim_results
         u_res = st.session_state.sim_results_unguided
@@ -211,7 +292,7 @@ with tab1:
         # Wind Physics Analysis Banner
         w_head = -wind * np.sin(np.deg2rad(wind_dir))   # Wind along projectile flight path (+X)
         w_cross = -wind * np.cos(np.deg2rad(wind_dir))  # Wind perpendicular (+Y = North, -Y = South)
-        
+
         head_str = f"{abs(w_head):.1f} m/s Headwind (Shortens Range)" if w_head < -0.1 else (
             f"{abs(w_head):.1f} m/s Tailwind (Extends Range)" if w_head > 0.1 else "Zero Head/Tailwind"
         )
@@ -222,8 +303,8 @@ with tab1:
         st.info(
             f"🌬️ **Atmospheric Conditions**: Wind Speed = **{wind:.1f} m/s**, Direction = **{wind_dir:.0f}°** | "
             f"**{head_str}** | **{cross_str}**  \n"
-            f"📌 *Note: At Wind = 0 m/s, unguided shell falls short at ~23.3 km due to natural aerodynamic drag. "
-            f"Guided PGK canards deploy at t = 2.0s to glide and hit the 24.0 km target.*"
+            f"📌 *Note: At Wind = 0 m/s, unguided shell falls short at ~{r_nom/1000:.1f} km due to natural aerodynamic drag. "
+            f"Guided PGK canards deploy at t = 2.0s to glide and hit the {target_x/1000:.1f} km target.*"
         )
 
         # Metrics row
@@ -400,6 +481,18 @@ with tab1:
 
         with col_drift:
             fig_drift = go.Figure()
+
+            # Reachability Footprint Zone (Green Shaded Region)
+            fig_drift.add_trace(go.Scatter(
+                x=[r_min, r_max, r_max, r_min, r_min],
+                y=[-y_max, -y_max, y_max, y_max, -y_max],
+                fill="toself",
+                fillcolor="rgba(34, 197, 94, 0.12)",
+                line=dict(color="rgba(34, 197, 94, 0.65)", width=1.5, dash="dash"),
+                name=f"Reachable Zone [{r_min/1000:.1f}–{r_max/1000:.1f}km, ±{y_max/1000:.1f}km]",
+                hoverinfo="skip",
+            ))
+
             # Guided line
             fig_drift.add_trace(go.Scatter(
                 x=pos[:, 0], y=pos[:, 1],
@@ -420,8 +513,8 @@ with tab1:
                 x=[res["target"][0]], y=[res["target"][1]],
                 mode="markers+text",
                 marker=dict(size=12, color="#dc2626", symbol="circle"),
-                text=["Target"], textposition="top right",
-                name="Target (24km, 0m)",
+                text=[f"Target ({res['target'][0]/1000:.1f}km)"], textposition="top right",
+                name="Target Location",
             ))
             fig_drift.update_layout(
                 title="🎯 Top-Down View: Lateral Wind Drift (X vs Y)",
