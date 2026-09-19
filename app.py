@@ -471,7 +471,7 @@ with tab1:
             mode="lines+markers",
             marker=dict(size=1.5, color=v_mag, colorscale="Jet",
                         showscale=True, colorbar=dict(title=dict(text="V (m/s)", font=dict(color="#111827")),
-                                                      tickfont=dict(color="#111827"), len=0.5)),
+                                                      tickfont=dict(color="#111827"), len=0.5, x=1.02)),
             line=dict(color=traj_color, width=4),
             name=traj_name,
         ))
@@ -553,9 +553,10 @@ with tab1:
         ]
         fig.frames = anim_frames
 
-        # 6. Clean Background, Aspect Ratio & Camera Controls
+        # 6. Clean Background, Aspect Ratio & Camera Controls (Full Container Width)
         fig.update_layout(
             scene=dict(
+                domain=dict(x=[0.0, 1.0], y=[0.0, 1.0]),
                 xaxis=dict(
                     title=dict(text="Downrange (m)", font=dict(color="#111827", size=12)),
                     backgroundcolor="#ffffff",
@@ -582,20 +583,24 @@ with tab1:
                 ),
                 bgcolor="#ffffff",
                 aspectmode="manual",
-                aspectratio=dict(x=2.6, y=0.8, z=0.9),
+                aspectratio=dict(x=3.0, y=0.8, z=0.9),
                 camera=dict(
-                    eye=dict(x=0.0, y=-2.5, z=0.3),
-                    center=dict(x=0.0, y=0.0, z=-0.05),
+                    eye=dict(x=0.0, y=-3.8, z=0.2),
+                    center=dict(x=0.0, y=0.0, z=0.0),
                     up=dict(x=0, y=0, z=1),
                 ),
             ),
             paper_bgcolor="#ffffff",
             plot_bgcolor="#ffffff",
             font=dict(color="#111827"),
-            margin=dict(l=0, r=0, b=0, t=40),
+            margin=dict(l=10, r=10, b=10, t=50),
             height=600,
             legend=dict(
-                x=0.02, y=0.96,
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1.0,
                 bgcolor="rgba(255, 255, 255, 0.92)",
                 bordercolor="#d1d5db",
                 borderwidth=1,
@@ -605,7 +610,9 @@ with tab1:
                 dict(
                     type="buttons",
                     direction="right",
-                    x=0.02, y=1.04,
+                    x=0.0, y=1.02,
+                    xanchor="left",
+                    yanchor="bottom",
                     showactive=True,
                     bgcolor="#ffffff",
                     bordercolor="#d1d5db",
@@ -614,25 +621,25 @@ with tab1:
                         dict(
                             label="Side Profile (Full Arc)",
                             method="relayout",
-                            args=[{"scene.camera": dict(eye=dict(x=0.0, y=-2.5, z=0.3), center=dict(x=0.0, y=0.0, z=-0.05), up=dict(x=0, y=0, z=1))}]
+                            args=[{"scene.camera": dict(eye=dict(x=0.0, y=-3.8, z=0.2), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=0, z=1))}]
                         ),
                         dict(
                             label="3D Isometric View",
                             method="relayout",
-                            args=[{"scene.camera": dict(eye=dict(x=1.6, y=-1.8, z=1.0), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=0, z=1))}]
+                            args=[{"scene.camera": dict(eye=dict(x=1.6, y=-2.4, z=1.0), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=0, z=1))}]
                         ),
                         dict(
                             label="Top-Down (Crossrange)",
                             method="relayout",
-                            args=[{"scene.camera": dict(eye=dict(x=0.0, y=0.01, z=2.5), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=1, z=0))}]
+                            args=[{"scene.camera": dict(eye=dict(x=0.0, y=0.01, z=3.2), center=dict(x=0.0, y=0.0, z=0.0), up=dict(x=0, y=1, z=0))}]
                         ),
                         dict(
-                            label="▶ Play Flight Animation",
+                            label="Play Flight Animation",
                             method="animate",
                             args=[None, dict(frame=dict(duration=55, redraw=True), fromcurrent=True, mode="immediate", transition=dict(duration=0))]
                         ),
                         dict(
-                            label="⏸ Pause",
+                            label="Pause",
                             method="animate",
                             args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate", transition=dict(duration=0))]
                         ),
