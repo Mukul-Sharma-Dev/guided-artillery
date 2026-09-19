@@ -169,6 +169,7 @@ class FlightSimulator:
         wind_speed: Optional[float] = None,
         wind_direction_deg: Optional[float] = None,
         cd_scale: float = 1.0,
+        sensor_fault: str = "NORMAL",
         **kwargs,
     ) -> Dict:
         """Execute a single flight simulation.
@@ -193,6 +194,8 @@ class FlightSimulator:
             Override wind meteorological direction FROM [°] (0=North, 90=East, etc.).
         cd_scale : float
             Multiplicative factor on drag coefficient.
+        sensor_fault : str
+            Sensor fault injection mode: "NORMAL", "GNSS_DROPOUT", or "IMU_BIAS".
 
         Returns
         -------
@@ -200,6 +203,14 @@ class FlightSimulator:
             Comprehensive simulation results with time histories.
         """
         self._build_subsystems(seed, guided)
+
+        # Apply sensor fault mode
+        fault_mode = sensor_fault.upper() if sensor_fault else "NORMAL"
+        if "DROPOUT" in fault_mode or "GNSS" in fault_mode:
+            self.gps.dropout_prob = 0.85  # Severe GNSS dropout
+        elif "BIAS" in fault_mode or "IMU" in fault_mode:
+            self.imu.accel_bias_vec = self.imu.accel_bias_vec + np.array([4.5, -4.0, 3.5])
+            self.imu.gyro_bias_vec = self.imu.gyro_bias_vec + np.array([0.08, -0.06, 0.05])
 
         # Override parameters if provided
         cfg = self.config
@@ -266,10 +277,20 @@ class FlightSimulator:
         mach_numbers = []
         accelerations_g = []
 
+        # Additional 6-DOF telemetry & residuals
+        attitudes_deg = []
+        angular_rates = []
+        imu_residuals = []
+        gnss_residuals = []
+        baro_residuals = []
+
         t = 0.0
         step = 0
         launched = True
         apogee_alt = 0.0
+        prev_pitch = el
+        prev_yaw = az
+        p_spin = 266.1 * 2 * np.pi  # Initial spin rate rad/s
 
         # ── Main simulation loop ─────────────────────────────────────
         while t < self.t_max and step < max_steps:
@@ -313,15 +334,30 @@ class FlightSimulator:
             ekf_accel = imu_accel - np.array([0.0, 0.0, g])
             self.ekf.predict(ekf_accel, self.dt)
 
+            gnss_res_val = np.nan
             if gps_valid and gps_pos is not None:
+                gnss_res_val = float(np.linalg.norm(gps_pos - self.ekf.x[:3]))
                 self.ekf.update_gps(gps_pos, gps_vel)
 
             # Baro update at its rate (~20 Hz → every 50ms)
             baro_interval = max(1, int(1.0 / (cfg["sensors"]["baro"]["update_rate_hz"] * self.dt)))
+            baro_res_val = np.nan
             if step % baro_interval == 0:
+                baro_res_val = float(abs(baro_alt - self.ekf.x[2]))
                 self.ekf.update_baro(baro_alt)
 
             ekf_state, ekf_cov_diag = self.ekf.get_state()
+            imu_res_val = float(np.linalg.norm(imu_accel - specific_force))
+
+            # Attitude estimation (Pitch, Yaw from velocity vector, de-spun collar roll ~0)
+            v_horiz_norm = np.sqrt(vel[0]**2 + vel[1]**2)
+            cur_pitch_rad = np.arctan2(vel[2], max(v_horiz_norm, 1e-3))
+            cur_yaw_rad = np.arctan2(vel[1], max(vel[0], 1e-3))
+            q_rate = (cur_pitch_rad - prev_pitch) / self.dt
+            r_rate = (cur_yaw_rad - prev_yaw) / self.dt
+            prev_pitch, prev_yaw = cur_pitch_rad, cur_yaw_rad
+            # Spin decay over time
+            p_spin = max(p_spin * (1.0 - 0.001 * self.dt), 50.0)
 
             # ── Guidance & Control ───────────────────────────────────
             pitch_cmd, yaw_cmd = 0.0, 0.0
@@ -364,6 +400,12 @@ class FlightSimulator:
                 )
                 mach_numbers.append(mach)
                 accelerations_g.append(accel_mag_g)
+
+                attitudes_deg.append([0.0, float(np.rad2deg(cur_pitch_rad)), float(np.rad2deg(cur_yaw_rad))])
+                angular_rates.append([float(p_spin), float(q_rate), float(r_rate)])
+                imu_residuals.append(imu_res_val)
+                gnss_residuals.append(gnss_res_val)
+                baro_residuals.append(baro_res_val)
 
             # ── RK4 Integration ──────────────────────────────────────
             canard_p_rad = np.deg2rad(actual_p)
@@ -410,6 +452,12 @@ class FlightSimulator:
             "flight_time_s": t,
             "guided": guided,
             "fuze_telemetry": self.fuze.get_telemetry(),
+            "sensor_fault": fault_mode,
+            "attitude_deg": np.array(attitudes_deg),
+            "angular_rates": np.array(angular_rates),
+            "imu_residual": np.array(imu_residuals),
+            "gnss_residual": np.array(gnss_residuals),
+            "baro_residual": np.array(baro_residuals),
         }
 
         return results
