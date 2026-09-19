@@ -216,11 +216,12 @@ def compute_reachability_envelope(v0: float, theta_deg: float) -> dict:
 # ═══════════════════════════════════════════════════════════════════
 # TABS
 # ═══════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Mission Control",
     "GNC & Sensor Fusion",
     "Monte Carlo CEP",
     "System Architecture & Engineering Specification",
+    "Hardware Integration & HIL",
 ])
 
 # ── TAB 1: Mission Control & 3D Trajectory ────────────────────────
@@ -277,6 +278,52 @@ with tab1:
         }.get(s, s),
         help="Test sensor fault tolerance: normal operation, 85% GNSS denial, or severe IMU drift bias."
     )
+    # ── Hardware Link (HIL) Section in Sidebar ──────────────────────
+    st.sidebar.markdown("### <i class='bi bi-cpu'></i> Hardware Link (HIL)", unsafe_allow_html=True)
+    from embedded.serial_bridge import PGKSerialBridge, HAS_SERIAL
+
+    available_ports = PGKSerialBridge.list_ports()
+    port_names = [p["device"] for p in available_ports]
+    auto_port = PGKSerialBridge.auto_detect_stm32()
+
+    if "hil_bridge" not in st.session_state:
+        st.session_state.hil_bridge = None
+        st.session_state.hil_connected = False
+        st.session_state.hil_telemetry = {}
+
+    default_idx = 0
+    if auto_port and auto_port in port_names:
+        default_idx = port_names.index(auto_port)
+
+    if port_names:
+        selected_port = st.sidebar.selectbox("Target Serial Port", port_names, index=default_idx)
+    else:
+        selected_port = st.sidebar.text_input("Serial Port (Nucleo / Mock)", value="/dev/tty.usbmodem1101" if not auto_port else auto_port)
+
+    col_h1, col_h2 = st.sidebar.columns(2)
+    with col_h1:
+        if not st.session_state.hil_connected:
+            if st.button("Connect HW", key="btn_hw_conn", use_container_width=True):
+                bridge = PGKSerialBridge(port=selected_port)
+                if bridge.connect():
+                    st.session_state.hil_bridge = bridge
+                    st.session_state.hil_connected = True
+                    st.sidebar.success(f"Connected: {selected_port}")
+                else:
+                    st.sidebar.info("HW Mock/Offline mode")
+        else:
+            if st.button("Disconnect", key="btn_hw_disc", use_container_width=True):
+                if st.session_state.hil_bridge:
+                    st.session_state.hil_bridge.disconnect()
+                st.session_state.hil_bridge = None
+                st.session_state.hil_connected = False
+                st.sidebar.info("Disconnected")
+
+    with col_h2:
+        hw_status_text = "● HW ONLINE" if st.session_state.hil_connected else "○ OFFLINE"
+        hw_status_color = "#16a34a" if st.session_state.hil_connected else "#6b7280"
+        st.markdown(f"<div style='padding-top:8px; font-size:12px; font-weight:700; color:{hw_status_color};'>{hw_status_text}</div>", unsafe_allow_html=True)
+
 
     if st.sidebar.button("Launch Flight Simulation", type="primary", use_container_width=True):
         with st.spinner("Simulating flight trajectory..."):
@@ -1452,5 +1499,325 @@ with tab4:
         },
     ])
     st.dataframe(req_df, use_container_width=True, hide_index=True)
+
+
+# ── TAB 5: Hardware-in-the-Loop (HIL) & Physical Shell Integration ──
+with tab5:
+    st.markdown("## <i class='bi bi-cpu-fill'></i> Hardware-in-the-Loop (HIL) & Physical Shell Integration", unsafe_allow_html=True)
+    st.markdown(
+        "*Real-world physical realization of the PGK-155 demonstrator: mapping software simulation to physical hardware, "
+        "mechanical fitment inside the NATO standard 2-inch fuze well, 3D printable shell enclosure, and bidirectional STM32 HIL telemetry.*"
+    )
+
+    # ── Live Hardware Link Status Banner ────────────────────────────
+    from embedded.serial_bridge import PGKSerialBridge, HAS_SERIAL
+    is_hw_connected = st.session_state.get("hil_connected", False)
+    bridge_inst = st.session_state.get("hil_bridge", None)
+
+    if is_hw_connected and bridge_inst:
+        st.success(
+            f"**<i class='bi bi-check-circle-fill'></i> Hardware Online:** Connected to STM32 Nucleo on `{bridge_inst.port}` (115200 baud). "
+            f"Transmitted: **{bridge_inst.tx_count}** packets | Received: **{bridge_inst.rx_count}** packets | Errors: **{bridge_inst.rx_errors}**",
+            icon=None
+        )
+    else:
+        st.info(
+            "**<i class='bi bi-info-circle'></i> Hardware Standby / Emulation Mode:** STM32 Nucleo board is offline. "
+            "You can connect a board via the sidebar 'Hardware Link' panel, or use the interactive HIL emulator below to inspect real-time packets.",
+            icon=None
+        )
+
+    # ── 1. Physical Shell Fitment & 2-Inch NATO Fuze Well ───────────
+    st.markdown("### <i class='bi bi-gear-wide-connected'></i> 1. Mechanical Integration & Fuze Well Fitment", unsafe_allow_html=True)
+    st.markdown(
+        "The PGK hardware replaces the standard unguided artillery fuze by screwing directly into the "
+        "**NATO Standard 2-inch 12-UNS-2B threaded fuze cavity** present at the nose of all modern 155 mm projectiles (M107, M795, ERFB, K9 Vajra)."
+    )
+
+    col_mech1, col_mech2 = st.columns([3, 2])
+    with col_mech1:
+        st.markdown(
+            """
+            ```
+            NOSE (Forward) ─────────────────────────────────── SHELL BODY (Aft)
+            ◄─────────────────────── ~200 mm Total Length ──────────────────────►
+
+            ┌──────────────────────────────────────────────────────────────────┐
+            │                                                                  │
+            │  ┌──────────┐  ┌───────────┐  ┌────────────┐  ┌───────────────┐ │
+            │  │  CANARD  │  │  ACTUATOR │  │ NAVIGATION │  │ SAFETY, ESAF  │ │
+            │  │   FINS   │  │   RING    │  │ & FLIGHT   │  │ & THERMAL BATT│ │
+            │  │ 4x Pivot │──│ 4 Servos  │──│ COMPUTER   │──│ S&A Interlock │ │
+            │  │ Titanium │  │ De-Spin   │  │ IMU+GPS+   │  │ Li-FeS₂ 28V   │ │
+            │  │ ±15° def │  │  Bearing  │  │ EKF STM32  │  │ 10,000g Primer│ │
+            │  └──────────┘  └───────────┘  └────────────┘  └───────────────┘ │
+            │                                                                  │
+            │  Layer 1 (~30mm) Layer 2 (~45mm) Layer 3 (~65mm) Layer 4-5 (~60mm) │
+            │                                                                  │
+            └─────────────── 51.1 mm Outer Envelope (2"-12 UNS) ───────────────┘
+            ```
+            """
+        )
+
+    with col_mech2:
+        st.markdown(
+            """
+            <div style='background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; font-size:13px;'>
+                <h5 style='margin-top:0; color:#1e293b;'><i class='bi bi-rulers'></i> Mechanical Specifications</h5>
+                <ul style='margin-bottom:0; padding-left:18px;'>
+                    <li><b>Thread Standard:</b> 2"-12 UNS-2B (51.1 mm thread dia)</li>
+                    <li><b>Total Assembly Mass:</b> 1.35 kg (vs 43.2 kg total shell)</li>
+                    <li><b>Volume Envelope:</b> 420 cm³ internal cavity</li>
+                    <li><b>De-Spin Bearing:</b> Dual angular contact ceramic hybrid</li>
+                    <li><b>Spin Isolation:</b> Shell spins at ~250 rev/s; nose collar is de-spun (p ≈ 0 rad/s)</li>
+                    <li><b>Structural Potting:</b> Stycast 2850FT epoxy encapsulation</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("---")
+
+    # ── 2. Component Mapping Matrix ─────────────────────────────────
+    st.markdown("### <i class='bi bi-table'></i> 2. Simulation-to-Hardware Component Mapping Matrix", unsafe_allow_html=True)
+    st.markdown("Every parameter and subsystem from your Python physics engine maps directly to an off-the-shelf, bench-verifiable hardware component:")
+
+    hw_mapping_data = [
+        {
+            "Subsystem": "Flight Computer (GNC)",
+            "Simulation Parameter (Python)": "FlightSimulator (simulator.py): RK4 100 Hz dt=10ms",
+            "Hardware Component": "STM32H743ZI2 Nucleo",
+            "Key Specifications": "ARM Cortex-M7 @ 480 MHz, 1 MB RAM, Hardware FPU, DSP",
+            "Bench Role / Demo Cost": "Main Flight Computer (₹3,500)",
+        },
+        {
+            "Subsystem": "Inertial Measurement (IMU)",
+            "Simulation Parameter (Python)": "IMUSensor (sensors.py): σ_a=5.0 m/s², σ_g=0.01 rad/s, 100 Hz",
+            "Hardware Component": "MPU-9250 / ADIS16490",
+            "Key Specifications": "6-DOF accel/gyro, SPI @ 4 MHz, 16g / 2000 dps scale",
+            "Bench Role / Demo Cost": "Real-time navigation IMU (₹350)",
+        },
+        {
+            "Subsystem": "Global Navigation (GNSS)",
+            "Simulation Parameter (Python)": "GPSSensor (sensors.py): σ_pos=2.0m, σ_vel=0.1m/s, 10 Hz",
+            "Hardware Component": "u-blox NEO-6M / M9N",
+            "Key Specifications": "10 Hz update, NMEA/UBX over UART2, 1.5m CEP accuracy",
+            "Bench Role / Demo Cost": "GPS receiver module (₹400)",
+        },
+        {
+            "Subsystem": "Barometric Altimeter",
+            "Simulation Parameter (Python)": "BaroSensor (sensors.py): σ_alt=3.0m, 50 Pa bias, 20 Hz",
+            "Hardware Component": "BMP280 / BMP390",
+            "Key Specifications": "I2C interface, ±0.5m precision, temperature compensated",
+            "Bench Role / Demo Cost": "Altitude verification (₹150)",
+        },
+        {
+            "Subsystem": "Canard Actuators",
+            "Simulation Parameter (Python)": "CanardActuator (actuator_model.py): ±15° defl, 300°/s slew",
+            "Hardware Component": "4x SG90 / MG90S Micro Servos",
+            "Key Specifications": "PWM 50 Hz, 60°/0.1s slew rate, differential pitch/yaw",
+            "Bench Role / Demo Cost": "Canard steering fins (₹400)",
+        },
+        {
+            "Subsystem": "Safety & Fuze (ESAF)",
+            "Simulation Parameter (Python)": "ElectronicFuze (fuze_simulator.py): SAFE→ARMING→ARMED→ACTIVE→DET",
+            "Hardware Component": "RGB Indicator + Safe LED",
+            "Key Specifications": "Blue=SAFE, Orange=ARMING, Yellow=ARMED, Green=ACTIVE, Red=DET",
+            "Bench Role / Demo Cost": "MIL-STD-1316 state display (₹60)",
+        },
+        {
+            "Subsystem": "Power Architecture",
+            "Simulation Parameter (Python)": "Thermal Battery: Setback > 10,000g activation",
+            "Hardware Component": "Regulated 5V 3A Supply",
+            "Key Specifications": "Isolated servo rail + 3.3V MCU LDO regulator",
+            "Bench Role / Demo Cost": "Power distribution (₹300)",
+        },
+    ]
+    st.dataframe(pd.DataFrame(hw_mapping_data), use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+    # ── 3. Live Hardware-in-the-Loop (HIL) Streaming & Telemetry ───
+    st.markdown("### <i class='bi bi-broadcast-pin'></i> 3. Live Hardware-in-the-Loop (HIL) Flight Streamer", unsafe_allow_html=True)
+    st.markdown(
+        "Stream trajectory coordinates from your active simulation run to the physical STM32 flight computer over USB Serial. "
+        "The STM32 runs its internal EKF and proportional navigation algorithm, deflects real servos, and streams back telemetry."
+    )
+
+    hil_col1, hil_col2 = st.columns([1, 1])
+
+    with hil_col1:
+        st.markdown("#### <i class='bi bi-send-fill'></i> Trajectory Transmission", unsafe_allow_html=True)
+
+        if st.session_state.sim_results is not None:
+            res = st.session_state.sim_results
+            t_pts = res["time"]
+            n_frames = len(t_pts)
+            st.info(f"Loaded Simulation: **{n_frames}** trajectory frames ({t_pts[-1]:.1f}s flight time, miss: {res['miss_distance_m']:.1f}m)")
+
+            btn_stream = st.button("Transmit Trajectory to Hardware", type="primary", use_container_width=True)
+
+            if btn_stream:
+                progress_bar = st.progress(0.0)
+                status_box = st.empty()
+
+                step_skip = max(1, n_frames // 100)
+                sample_indices = list(range(0, n_frames, step_skip))
+                if sample_indices[-1] != n_frames - 1:
+                    sample_indices.append(n_frames - 1)
+
+                for idx, fi in enumerate(sample_indices):
+                    t_val = float(res["time"][fi])
+                    pos_val = res["true_position"][fi]
+                    vel_val = res["true_velocity"][fi]
+                    accel_val = np.array([0.0, 0.0, -9.81])
+                    alt_val = max(pos_val[2], 0.0)
+
+                    # Send packet if connected
+                    if is_hw_connected and bridge_inst:
+                        bridge_inst.send_telemetry(t_val, pos_val, vel_val, accel_val, alt_val)
+
+                    progress_bar.progress((idx + 1) / len(sample_indices))
+                    status_box.markdown(
+                        f"**Transmitting Frame {fi}/{n_frames}:** `t={t_val:.1f}s` | "
+                        f"`X={pos_val[0]/1000:.1f}km`, `Z={pos_val[2]/1000:.1f}km`, `V={np.linalg.norm(vel_val):.0f}m/s`"
+                    )
+                    time.sleep(0.02)
+
+                status_box.success(f"Transmission complete! {len(sample_indices)} frames sent to flight computer.")
+        else:
+            st.warning("Please click **'Launch Flight Simulation'** in the sidebar first to generate trajectory data for HIL streaming.")
+
+    with hil_col2:
+        st.markdown("#### <i class='bi bi-activity'></i> Flight Computer Telemetry Feedback", unsafe_allow_html=True)
+
+        # Get latest hardware telemetry if available, otherwise show sample telemetry
+        hw_tlm = {}
+        if is_hw_connected and bridge_inst:
+            hw_tlm = bridge_inst.get_hardware_telemetry()
+
+        # Fallback values for visual demonstrator if not currently reading from physical port
+        t_hw = hw_tlm.get("time", res["time"][-1] if st.session_state.sim_results else 0.0)
+        fuze_hw = hw_tlm.get("fuze_state", "ACTIVE" if t_hw > 5.0 else "SAFE")
+        phase_hw = hw_tlm.get("phase", "TERMINAL" if t_hw > 40.0 else "MIDCOURSE")
+        pitch_hw = hw_tlm.get("pitch_cmd", res["canard_pitch"][-1] if st.session_state.sim_results else 0.0)
+        yaw_hw = hw_tlm.get("yaw_cmd", res["canard_yaw"][-1] if st.session_state.sim_results else 0.0)
+        ekf_x_hw = hw_tlm.get("ekf_x", res["ekf_position"][-1, 0] if st.session_state.sim_results else 0.0)
+        ekf_y_hw = hw_tlm.get("ekf_y", res["ekf_position"][-1, 1] if st.session_state.sim_results else 0.0)
+        ekf_z_hw = hw_tlm.get("ekf_z", res["ekf_position"][-1, 2] if st.session_state.sim_results else 0.0)
+
+        c_t1, c_t2 = st.columns(2)
+        c_t1.metric("Hardware Fuze State", fuze_hw, help="Reported by STM32 MIL-STD-1316 state machine")
+        c_t2.metric("Flight Phase", phase_hw, help="Current phase computed by guidance manager")
+
+        c_s1, c_s2 = st.columns(2)
+        c_s1.metric("Pitch Canard Angle", f"{pitch_hw:+.1f}°", delta=f"{pitch_hw*3:+.0f}° Servo")
+        c_s2.metric("Yaw Canard Angle", f"{yaw_hw:+.1f}°", delta=f"{yaw_hw*3:+.0f}° Servo")
+
+        st.markdown(
+            f"""
+            <div style='background:#1e293b; color:#f8fafc; border-radius:6px; padding:12px; font-family:monospace; font-size:12px;'>
+                <div><b>STM32 Navigation State:</b></div>
+                <div>X_est: {ekf_x_hw:10.2f} m | Vx: {res['ekf_velocity'][-1,0] if st.session_state.sim_results else 0:8.2f} m/s</div>
+                <div>Y_est: {ekf_y_hw:10.2f} m | Vy: {res['ekf_velocity'][-1,1] if st.session_state.sim_results else 0:8.2f} m/s</div>
+                <div>Z_est: {ekf_z_hw:10.2f} m | Vz: {res['ekf_velocity'][-1,2] if st.session_state.sim_results else 0:8.2f} m/s</div>
+                <div style='margin-top:6px; color:#38bdf8;'><b>Packet Stream:</b> $TLM,{t_hw:.2f},RUNNING,{phase_hw},{ekf_x_hw:.1f},{ekf_y_hw:.1f},{ekf_z_hw:.1f}*CHK</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("---")
+
+    # ── 4. 3D Shell Model & OpenSCAD Manufacturing Guide ───────────
+    st.markdown("### <i class='bi bi-box-seam'></i> 4. 3D Printable Shell Model (`shell_model.scad`)", unsafe_allow_html=True)
+    st.markdown(
+        "A parametric 3D CAD model of the 155 mm nose section has been generated in `embedded/shell_model.scad`. "
+        "It can be scaled (default 1:2 scale, ~77.5 mm diameter) and 3D-printed in PLA or PETG to house the STM32 board, servos, and sensors for your booth demonstration."
+    )
+
+    cad_col1, cad_col2 = st.columns(2)
+    with cad_col1:
+        st.markdown(
+            """
+            <div style='background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:14px; font-size:13px;'>
+                <h5 style='margin-top:0; color:#0f172a;'><i class='bi bi-printer'></i> 3D Print Instructions</h5>
+                <ul>
+                    <li><b>File Location:</b> <code>embedded/shell_model.scad</code></li>
+                    <li><b>Scale Factor:</b> 1:2 (Half-scale, fits standard 220×220 mm print beds)</li>
+                    <li><b>Material:</b> PLA or PETG (Infill: 20% Gyroid for structural stiffness)</li>
+                    <li><b>Layer Height:</b> 0.2 mm with 3 outer perimeters</li>
+                    <li><b>Internal Cavity:</b> Pre-cut pockets for 4x SG90 servos and Nucleo mounting</li>
+                    <li><b>Cruciform Slots:</b> 4 orthogonal clearance slots for canard pivot pins</li>
+                    <li><b>Viewing Port:</b> Transparent window slot to view the RGB Fuze Status LED</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with cad_col2:
+        st.markdown(
+            """
+            <div style='background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:14px; font-size:13px;'>
+                <h5 style='margin-top:0; color:#0f172a;'><i class='bi bi-terminal'></i> How to Generate STL & Print</h5>
+                <ol>
+                    <li>Install <b>OpenSCAD</b>: <code>brew install --cask openscad</code></li>
+                    <li>Open <code>embedded/shell_model.scad</code></li>
+                    <li>Press <b>F6</b> (Render) and <b>F7</b> (Export STL)</li>
+                    <li>Open STL in Cura / PrusaSlicer:
+                        <br><code>openscad -o shell_mockup.stl embedded/shell_model.scad</code>
+                    </li>
+                    <li>Mount 4x SG90 servos in the 90° cruciform pockets and connect linkages.</li>
+                </ol>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("---")
+
+    # ── 5. STM32 Firmware Architecture & Flashing Guide ────────────
+    st.markdown("### <i class='bi bi-file-earmark-code'></i> 5. STM32 C/C++ Firmware Architecture (`embedded/stm32_firmware`)", unsafe_allow_html=True)
+    st.markdown(
+        "The firmware is fully ported from your Python algorithms into high-performance embedded C++ with clean hardware abstraction. "
+        "It is pre-configured for PlatformIO with the STM32 Nucleo-H743ZI2 board."
+    )
+
+    fw_col1, fw_col2 = st.columns(2)
+    with fw_col1:
+        st.markdown(
+            """
+            **Firmware Module Organization:**
+            - `include/pgk_config.h` — Master parameters (43.2 kg shell, 15° deflection, pins, gains)
+            - `src/pgk_ekf.cpp` — 6-state EKF (`[x,y,z,vx,vy,vz]`) with 6×6 matrix math & sensor fusion
+            - `src/pgk_guidance.cpp` — Proportional navigation (N=6) & crossrange PD controller
+            - `src/pgk_actuator.cpp` — Rate-limited servo PWM driver with first-order lag (τ=20ms)
+            - `src/pgk_fuze.cpp` — MIL-STD-1316 safety-arming state machine
+            - `src/pgk_sensors.cpp` — Drivers for MPU-9250 (SPI), BMP280 (I2C), and NEO-6M (UART)
+            - `src/pgk_serial_bridge.cpp` — Checksummed `$PGK` / `$TLM` UART telemetry interface
+            - `src/main.cpp` — 100 Hz deterministic control loop with multi-sensor fusion
+            """
+        )
+
+    with fw_col2:
+        st.markdown(
+            """
+            <div style='background:#0f172a; color:#f8fafc; border-radius:8px; padding:14px; font-family:monospace; font-size:12px;'>
+                <div style='color:#38bdf8;'># Build and Flash to STM32 Nucleo:</div>
+                <div>cd embedded/stm32_firmware</div>
+                <div>pio run -e nucleo_h743zi2 --target upload</div>
+                <br>
+                <div style='color:#38bdf8;'># Open Serial Monitor (115200 baud):</div>
+                <div>pio device monitor -b 115200</div>
+                <br>
+                <div style='color:#38bdf8;'># Standalone Desktop Compilation Test:</div>
+                <div>g++ -Iinclude -std=c++11 src/pgk_*.cpp</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 
 
