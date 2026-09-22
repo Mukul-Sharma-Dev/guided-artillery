@@ -1819,5 +1819,55 @@ with tab5:
             unsafe_allow_html=True
         )
 
+    st.markdown("---")
+
+    # ── 6. 3D Flight & Canard Dynamic Video Generator ──────────────
+    st.markdown("### <i class='bi bi-camera-video-fill'></i> 6. 3D Flight & Canard Dynamic Animation Video Generator", unsafe_allow_html=True)
+    st.markdown(
+        r"Interactive WebGL 3D Flight Visualizer powered by **Three.js**. "
+        r"Demonstrates dynamic canard surface articulation ($\pm 15^\circ$), aerodynamic guidance pitch/yaw twitching, "
+        r"and includes an in-browser **1080p 60FPS Video Recorder** for your competition/demonstration pitch."
+    )
+
+    col_vid1, col_vid2 = st.columns([2, 1])
+    with col_vid1:
+        st.markdown(
+            """
+            <div style='background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px; font-size:13px;'>
+                <h5 style='margin-top:0; color:#0f172a;'><i class='bi bi-play-circle'></i> How to Generate & Record the Video</h5>
+                <ol style='padding-left:18px;'>
+                    <li>Open <code>embedded/canard_flight_visualizer.html</code> in Google Chrome, Safari, or Brave.</li>
+                    <li>Select your camera angle: <b>Chase Cam</b> (follow shell from behind), <b>Wing Cam</b> (canard close-up), or <b>Free Orbit</b>.</li>
+                    <li>Click the red <b>'Record 1080p MP4'</b> button.</li>
+                    <li>The visualizer will smoothly animate the complete 24 km flight arc while recording at 60 FPS.</li>
+                    <li>At target impact, the video will automatically download directly to your computer as a high-definition video!</li>
+                </ol>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col_vid2:
+        st.markdown(
+            """
+            <div style='background:#0f172a; color:#f8fafc; border-radius:8px; padding:16px; font-family:monospace; font-size:12px; text-align:center;'>
+                <div style='color:#38bdf8; font-weight:700; margin-bottom:8px;'>LAUNCH VISUALIZER IN BROWSER</div>
+                <div style='font-size:11px; color:#94a3b8; margin-bottom:12px;'>File: embedded/canard_flight_visualizer.html</div>
+                <div style='background:#0284c7; padding:8px 12px; border-radius:6px; font-weight:700; color:white;'>
+                    open embedded/canard_flight_visualizer.html
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # Embed Visualizer iframe preview
+    try:
+        with open("embedded/canard_flight_visualizer.html", "r") as f_vis:
+            vis_html = f_vis.read()
+            st.components.v1.html(vis_html, height=620, scrolling=False)
+    except Exception as e:
+        st.info("Canard 3D visualizer file available at `embedded/canard_flight_visualizer.html`.")
+
+
 
 
