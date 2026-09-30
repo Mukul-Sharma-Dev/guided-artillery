@@ -32,23 +32,85 @@ except ImportError as e:
     MODULES_OK = False
     _import_err = str(e)
 
-# ── Custom CSS & Vector Icon Stylesheet ────────────────────────────
+# ── Professional Military/Defense Systems Theme & Stylesheet ───────
 st.markdown("""
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-    [data-testid="stMetric"] {
-        background-color: #1a2634;
-        padding: 12px 16px;
-        border-radius: 8px;
-        border-left: 4px solid #4caf50;
+    /* Global Base */
+    .stApp {
+        background-color: #0b1120;
+        color: #e2e8f0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
+    
+    /* Metrics Cards */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #111e38 0%, #0f172a 100%);
+        padding: 14px 18px;
+        border-radius: 8px;
+        border: 1px solid #1e293b;
+        border-left: 4px solid #0284c7;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+    [data-testid="stMetricLabel"] {
+        color: #94a3b8 !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    [data-testid="stMetricValue"] {
+        color: #f8fafc !important;
+        font-size: 1.35rem !important;
+        font-weight: 700 !important;
+        font-family: "JetBrains Mono", monospace, -apple-system;
+    }
+
+    /* Tabs Bar */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 6px;
+        background-color: #080d1a;
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid #1e293b;
     }
     .stTabs [data-baseweb="tab"] {
-        padding: 8px 20px;
+        padding: 8px 18px;
         font-weight: 600;
+        font-size: 0.88rem;
+        color: #94a3b8;
+        border-radius: 6px;
     }
+    .stTabs [aria-selected="true"] {
+        background-color: #1e293b !important;
+        color: #38bdf8 !important;
+        border-bottom: 2px solid #0284c7 !important;
+    }
+
+    /* Sidebar Clean Styling */
+    [data-testid="stSidebar"] {
+        background-color: #080d1a !important;
+        border-right: 1px solid #1e293b;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: #f1f5f9 !important;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        background-color: #0284c7;
+        color: #ffffff;
+        font-weight: 600;
+        border: none;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    .stButton > button:hover {
+        background-color: #0369a1;
+        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+
+    /* Icons */
     .bi {
         margin-right: 6px;
         vertical-align: -1px;
@@ -56,7 +118,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1><i class='bi bi-crosshair'></i> PGK-155 Precision Guidance Kit (PGK) Demonstrator</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color:#f8fafc; font-weight:800; letter-spacing:-0.02em;'><i class='bi bi-shield-check' style='color:#38bdf8;'></i> PGK-155 Precision Guidance Kit (PGK) Demonstrator</h1>", unsafe_allow_html=True)
 st.caption("155 mm Artillery Projectile Master System Architecture, Flight Dynamics & Engineering Specification — SIH 2026 / YIL")
 
 if not MODULES_OK:
@@ -517,8 +579,8 @@ with tab1:
             x=pos[:, 0], y=pos[:, 1], z=pos[:, 2],
             mode="lines+markers",
             marker=dict(size=1.5, color=v_mag, colorscale="Jet",
-                        showscale=True, colorbar=dict(title=dict(text="V (m/s)", font=dict(color="#111827")),
-                                                      tickfont=dict(color="#111827"), len=0.5, x=1.02)),
+                        showscale=True, colorbar=dict(title=dict(text="V (m/s)", font=dict(color="#e2e8f0")),
+                                                      tickfont=dict(color="#e2e8f0"), len=0.5, x=1.02)),
             line=dict(color=traj_color, width=4),
             name=traj_name,
         ))
@@ -605,30 +667,30 @@ with tab1:
             scene=dict(
                 domain=dict(x=[0.0, 1.0], y=[0.0, 1.0]),
                 xaxis=dict(
-                    title=dict(text="Downrange (m)", font=dict(color="#111827", size=12)),
-                    backgroundcolor="#ffffff",
-                    gridcolor="#e5e7eb",
+                    title=dict(text="Downrange (m)", font=dict(color="#e2e8f0", size=12)),
+                    backgroundcolor="rgba(0,0,0,0)",
+                    gridcolor="#334155",
                     showbackground=True,
-                    zerolinecolor="#9ca3af",
-                    tickfont=dict(color="#374151"),
+                    zerolinecolor="#475569",
+                    tickfont=dict(color="#94a3b8"),
                 ),
                 yaxis=dict(
-                    title=dict(text="Crossrange (m)", font=dict(color="#111827", size=12)),
-                    backgroundcolor="#ffffff",
-                    gridcolor="#e5e7eb",
+                    title=dict(text="Crossrange (m)", font=dict(color="#e2e8f0", size=12)),
+                    backgroundcolor="rgba(0,0,0,0)",
+                    gridcolor="#334155",
                     showbackground=True,
-                    zerolinecolor="#9ca3af",
-                    tickfont=dict(color="#374151"),
+                    zerolinecolor="#475569",
+                    tickfont=dict(color="#94a3b8"),
                 ),
                 zaxis=dict(
-                    title=dict(text="Altitude (m)", font=dict(color="#111827", size=12)),
-                    backgroundcolor="#ffffff",
-                    gridcolor="#e5e7eb",
+                    title=dict(text="Altitude (m)", font=dict(color="#e2e8f0", size=12)),
+                    backgroundcolor="rgba(0,0,0,0)",
+                    gridcolor="#334155",
                     showbackground=True,
-                    zerolinecolor="#9ca3af",
-                    tickfont=dict(color="#374151"),
+                    zerolinecolor="#475569",
+                    tickfont=dict(color="#94a3b8"),
                 ),
-                bgcolor="#ffffff",
+                bgcolor="rgba(0,0,0,0)",
                 aspectmode="manual",
                 aspectratio=dict(x=3.0, y=0.8, z=0.9),
                 camera=dict(
@@ -637,9 +699,9 @@ with tab1:
                     up=dict(x=0, y=0, z=1),
                 ),
             ),
-            paper_bgcolor="#ffffff",
-            plot_bgcolor="#ffffff",
-            font=dict(color="#111827"),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"),
             margin=dict(l=10, r=10, b=10, t=50),
             height=600,
             legend=dict(
@@ -648,10 +710,10 @@ with tab1:
                 y=1.02,
                 xanchor="right",
                 x=1.0,
-                bgcolor="rgba(255, 255, 255, 0.92)",
-                bordercolor="#d1d5db",
+                bgcolor="rgba(15, 23, 42, 0.85)",
+                bordercolor="#334155",
                 borderwidth=1,
-                font=dict(color="#111827", size=11),
+                font=dict(color="#e2e8f0", size=11),
             ),
             updatemenus=[
                 dict(
@@ -661,9 +723,9 @@ with tab1:
                     xanchor="left",
                     yanchor="bottom",
                     showactive=True,
-                    bgcolor="#ffffff",
-                    bordercolor="#d1d5db",
-                    font=dict(color="#111827", size=11),
+                    bgcolor="rgba(0,0,0,0)",
+                    bordercolor="#334155",
+                    font=dict(color="#e2e8f0", size=11),
                     buttons=[
                         dict(
                             label="Side Profile (Full Arc)",
@@ -741,13 +803,13 @@ with tab1:
                 title="Top-Down View: Lateral Wind Drift (X vs Y)",
                 xaxis_title="Downrange X (m)",
                 yaxis_title="Crossrange Y (m) [Lateral Drift]",
-                paper_bgcolor="#ffffff",
-                plot_bgcolor="#ffffff",
-                font=dict(color="#111827"),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"),
                 height=380,
-                xaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
-                yaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
-                legend=dict(x=0.02, y=0.98, bgcolor="rgba(255,255,255,0.85)"),
+                xaxis=dict(gridcolor="#1e293b", zerolinecolor="#475569"),
+                yaxis=dict(gridcolor="#1e293b", zerolinecolor="#475569"),
+                legend=dict(x=0.02, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)"),
                 margin=dict(l=40, r=20, b=40, t=50),
             )
             st.plotly_chart(fig_drift, use_container_width=True)
@@ -781,13 +843,13 @@ with tab1:
                 title="Side Profile: Altitude vs Downrange (X vs Z)",
                 xaxis_title="Downrange X (m)",
                 yaxis_title="Altitude Z (m)",
-                paper_bgcolor="#ffffff",
-                plot_bgcolor="#ffffff",
-                font=dict(color="#111827"),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"),
                 height=380,
-                xaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
-                yaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#d1d5db"),
-                legend=dict(x=0.02, y=0.98, bgcolor="rgba(255,255,255,0.85)"),
+                xaxis=dict(gridcolor="#1e293b", zerolinecolor="#475569"),
+                yaxis=dict(gridcolor="#1e293b", zerolinecolor="#475569"),
+                legend=dict(x=0.02, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)"),
                 margin=dict(l=40, r=20, b=40, t=50),
             )
             st.plotly_chart(fig_alt, use_container_width=True)
@@ -845,9 +907,9 @@ with tab2:
                 xaxis_title="Flight Time (s)",
                 yaxis_title="Downrange X / Alt Z (km)",
                 yaxis2=dict(title="Crossrange Y (m)", overlaying="y", side="right", showgrid=False),
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=390,
-                legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)", font=dict(size=10)),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=390,
+                legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)", font=dict(size=10)),
                 margin=dict(l=40, r=40, b=40, t=45),
             )
             st.plotly_chart(fig_pos, use_container_width=True)
@@ -869,9 +931,9 @@ with tab2:
             fig_err.update_layout(
                 title="EKF Position Estimation Error (X, Y, Z with ±3σ Bounds)",
                 xaxis_title="Flight Time (s)", yaxis_title="Estimation Error (m)",
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=390,
-                legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)", font=dict(size=10)),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=390,
+                legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)", font=dict(size=10)),
                 margin=dict(l=40, r=20, b=40, t=45),
             )
             st.plotly_chart(fig_err, use_container_width=True)
@@ -897,9 +959,9 @@ with tab2:
             fig_vc.update_layout(
                 title="Velocity Component Breakdown (Vx, Vy, Vz)",
                 xaxis_title="Flight Time (s)", yaxis_title="Velocity Component (m/s)",
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=380,
-                legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)", font=dict(size=10)),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=380,
+                legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)", font=dict(size=10)),
                 margin=dict(l=40, r=20, b=40, t=45),
             )
             st.plotly_chart(fig_vc, use_container_width=True)
@@ -914,9 +976,9 @@ with tab2:
                 title="Total Speed & Mach Profile",
                 xaxis_title="Flight Time (s)", yaxis_title="Speed (m/s)",
                 yaxis2=dict(title="Mach Number", overlaying="y", side="right", showgrid=False),
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=380,
-                legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)", font=dict(size=10)),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=380,
+                legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)", font=dict(size=10)),
                 margin=dict(l=40, r=40, b=40, t=45),
             )
             st.plotly_chart(fig_v, use_container_width=True)
@@ -936,9 +998,9 @@ with tab2:
             fig_att.update_layout(
                 title="Euler Attitude Angles (Roll, Pitch, Yaw)",
                 xaxis_title="Flight Time (s)", yaxis_title="Euler Angles (°)",
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=380,
-                legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)", font=dict(size=10)),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=380,
+                legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)", font=dict(size=10)),
                 margin=dict(l=40, r=20, b=40, t=45),
             )
             st.plotly_chart(fig_att, use_container_width=True)
@@ -955,9 +1017,9 @@ with tab2:
                 title="Body Angular Rates (p, q, r)",
                 xaxis_title="Flight Time (s)", yaxis_title="Roll Rate p (rad/s)",
                 yaxis2=dict(title="Pitch/Yaw Rates q, r (rad/s)", overlaying="y", side="right", showgrid=False),
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=380,
-                legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)", font=dict(size=10)),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=380,
+                legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)", font=dict(size=10)),
                 margin=dict(l=40, r=40, b=40, t=45),
             )
             st.plotly_chart(fig_rate, use_container_width=True)
@@ -972,8 +1034,8 @@ with tab2:
             fig_imu_res.update_layout(
                 title="IMU Specific Force Residual",
                 xaxis_title="Flight Time (s)", yaxis_title="Residual (m/s²)",
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=300,
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=300,
                 margin=dict(l=35, r=15, b=35, t=40),
             )
             st.plotly_chart(fig_imu_res, use_container_width=True)
@@ -987,8 +1049,8 @@ with tab2:
             fig_gnss_res.update_layout(
                 title="GNSS Innovation Residual",
                 xaxis_title="Flight Time (s)", yaxis_title="Innovation (m)",
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=300,
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=300,
                 margin=dict(l=35, r=15, b=35, t=40),
             )
             st.plotly_chart(fig_gnss_res, use_container_width=True)
@@ -1002,8 +1064,8 @@ with tab2:
             fig_baro_res.update_layout(
                 title="Barometric Altimeter Residual",
                 xaxis_title="Flight Time (s)", yaxis_title="Innovation (m)",
-                paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-                font=dict(color="#111827"), height=300,
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e2e8f0"), height=300,
                 margin=dict(l=35, r=15, b=35, t=40),
             )
             st.plotly_chart(fig_baro_res, use_container_width=True)
@@ -1020,9 +1082,9 @@ with tab2:
         fig_can.update_layout(
             title="Canard Actuator Commands (Deployment at t = 2.0 s, ±8.0° Limits)",
             xaxis_title="Flight Time (s)", yaxis_title="Deflection Angle (°)",
-            paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-            font=dict(color="#111827"), height=330,
-            legend=dict(x=0.01, y=0.98, bgcolor="rgba(255,255,255,0.85)"),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"), height=330,
+            legend=dict(x=0.01, y=0.98, bgcolor="rgba(15, 23, 42, 0.85)"),
             margin=dict(l=40, r=20, b=40, t=45),
         )
         st.plotly_chart(fig_can, use_container_width=True)
@@ -1168,7 +1230,7 @@ Uncertainties─┼─ Mass uncertainty
             x=[0], y=[0], mode="markers+text",
             marker=dict(color="#111827", size=14, symbol="cross"),
             text=["Target (0,0)"], textposition="top center",
-            textfont=dict(color="#111827", size=12),
+            textfont=dict(color="#e2e8f0", size=12),
             name="Target Point"
         ))
         # Guided Mean Point of Impact (MPI)
@@ -1200,11 +1262,11 @@ Uncertainties─┼─ Mass uncertainty
             title=f"2D Impact Dispersion & Statistical Containment Envelopes ({n_completed} Stochastic Trials)",
             xaxis_title="Downrange Error ΔX (m)",
             yaxis_title="Crossrange Error ΔY (m)",
-            xaxis=dict(range=[-max_disp, max_disp], gridcolor="#f3f4f6", zerolinecolor="#9ca3af"),
-            yaxis=dict(range=[-max_disp, max_disp], scaleanchor="x", scaleratio=1, gridcolor="#f3f4f6", zerolinecolor="#9ca3af"),
-            paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-            font=dict(color="#111827"), height=660,
-            legend=dict(x=0.01, y=0.99, bgcolor="rgba(255,255,255,0.92)", bordercolor="#d1d5db", borderwidth=1),
+            xaxis=dict(range=[-max_disp, max_disp], gridcolor="#1e293b", zerolinecolor="#475569"),
+            yaxis=dict(range=[-max_disp, max_disp], scaleanchor="x", scaleratio=1, gridcolor="#1e293b", zerolinecolor="#475569"),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"), height=660,
+            legend=dict(x=0.01, y=0.99, bgcolor="rgba(15, 23, 42, 0.85)", bordercolor="#334155", borderwidth=1),
             margin=dict(l=40, r=40, b=40, t=50),
         )
         st.plotly_chart(fig_mc, use_container_width=True)
@@ -1249,8 +1311,8 @@ Uncertainties─┼─ Mass uncertainty
         fig_sens.update_layout(
             title="Relative Impact Dispersion Variance Sensitivity",
             xaxis_title="Contribution to Total Dispersion Variance (%)",
-            paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
-            font=dict(color="#111827"), height=300,
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"), height=300,
             margin=dict(l=20, r=20, b=35, t=40),
         )
         st.plotly_chart(fig_sens, use_container_width=True)
@@ -1819,54 +1881,7 @@ with tab5:
             unsafe_allow_html=True
         )
 
-    st.markdown("---")
 
-    # ── 6. 3D Flight & Canard Dynamic Video Generator ──────────────
-    st.markdown("### <i class='bi bi-camera-video-fill'></i> 6. 3D Flight & Canard Dynamic Animation Video Generator", unsafe_allow_html=True)
-    st.markdown(
-        r"Interactive WebGL 3D Flight Visualizer powered by **Three.js**. "
-        r"Demonstrates dynamic canard surface articulation ($\pm 15^\circ$), aerodynamic guidance pitch/yaw twitching, "
-        r"and includes an in-browser **1080p 60FPS Video Recorder** for your competition/demonstration pitch."
-    )
-
-    col_vid1, col_vid2 = st.columns([2, 1])
-    with col_vid1:
-        st.markdown(
-            """
-            <div style='background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px; font-size:13px;'>
-                <h5 style='margin-top:0; color:#0f172a;'><i class='bi bi-play-circle'></i> How to Generate & Record the Video</h5>
-                <ol style='padding-left:18px;'>
-                    <li>Open <code>embedded/canard_flight_visualizer.html</code> in Google Chrome, Safari, or Brave.</li>
-                    <li>Select your camera angle: <b>Chase Cam</b> (follow shell from behind), <b>Wing Cam</b> (canard close-up), or <b>Free Orbit</b>.</li>
-                    <li>Click the red <b>'Record 1080p MP4'</b> button.</li>
-                    <li>The visualizer will smoothly animate the complete 24 km flight arc while recording at 60 FPS.</li>
-                    <li>At target impact, the video will automatically download directly to your computer as a high-definition video!</li>
-                </ol>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    with col_vid2:
-        st.markdown(
-            """
-            <div style='background:#0f172a; color:#f8fafc; border-radius:8px; padding:16px; font-family:monospace; font-size:12px; text-align:center;'>
-                <div style='color:#38bdf8; font-weight:700; margin-bottom:8px;'>LAUNCH VISUALIZER IN BROWSER</div>
-                <div style='font-size:11px; color:#94a3b8; margin-bottom:12px;'>File: embedded/canard_flight_visualizer.html</div>
-                <div style='background:#0284c7; padding:8px 12px; border-radius:6px; font-weight:700; color:white;'>
-                    open embedded/canard_flight_visualizer.html
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # Embed Visualizer iframe preview
-    try:
-        with open("embedded/canard_flight_visualizer.html", "r") as f_vis:
-            vis_html = f_vis.read()
-            st.components.v1.html(vis_html, height=620, scrolling=False)
-    except Exception as e:
-        st.info("Canard 3D visualizer file available at `embedded/canard_flight_visualizer.html`.")
 
 
 

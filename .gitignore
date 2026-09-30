@@ -33,3 +33,4 @@ telemetry_logs/
 *.png
 *.jpg
 !docs/*.png
+!embedded/*.png
